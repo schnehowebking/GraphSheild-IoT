@@ -13,7 +13,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from reviewer_revision.core import FEATURES, RuntimeDetector  # noqa: E402
+from reviewer_revision.core import FEATURES, RuntimeDetector, matches_text_sha  # noqa: E402
 from sdn import CompletedWindowController  # noqa: E402
 
 
@@ -27,18 +27,7 @@ def main():
         raise RuntimeError("Portable runtime requires Python 3.13")
     selection = json.loads((ROOT / "deployment/threshold_selection.json").read_text())
     assert sha(ROOT / "deployment/model.joblib") == selection["model_hash"]
-    # Git may normalize CRLF to LF on Linux.  The schema content is unchanged,
-    # so accept the raw checkout hash or either newline-normalized byte hash.
-    schema_path = ROOT / "deployment/feature_schema.json"
-    schema_bytes = schema_path.read_bytes()
-    schema_lf = schema_bytes.replace(b"\r\n", b"\n")
-    schema_crlf = schema_lf.replace(b"\n", b"\r\n")
-    schema_hashes = {
-        hashlib.sha256(schema_bytes).hexdigest(),
-        hashlib.sha256(schema_lf).hexdigest(),
-        hashlib.sha256(schema_crlf).hexdigest(),
-    }
-    assert selection["feature_schema_hash"] in schema_hashes
+    assert matches_text_sha(ROOT / "deployment/feature_schema.json", selection["feature_schema_hash"])
     detector = RuntimeDetector(directory=ROOT / "deployment", registry_path=ROOT / "configs/threshold_registry.json")
     zero = {name: 0.0 for name in FEATURES}
     response = CompletedWindowController(detector=detector, audit_enabled=False).detect_completed_window(zero, "parity-zero")

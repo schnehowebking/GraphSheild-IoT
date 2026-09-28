@@ -1,4 +1,5 @@
 from scripts.run_ovs_controller_trials import FEATURES, binary_metrics, parse_flow_counters, schedule
+from reviewer_revision.core import matches_text_sha
 
 
 def test_parse_tracking_flows():
@@ -33,3 +34,12 @@ def test_undefined_precision_is_explicit():
 def test_canonical_feature_order_is_fixed():
     assert FEATURES == ["pkt_rate", "byte_rate", "pkt_sum", "events", "unique_src",
                         "src_ip_entropy", "flow_count", "flow_rate"]
+
+
+def test_text_hash_accepts_git_newline_normalization(tmp_path):
+    lf = b'{\n  "features": []\n}\n'
+    crlf = lf.replace(b"\n", b"\r\n")
+    path = tmp_path / "schema.json"
+    path.write_bytes(lf)
+    expected = __import__("hashlib").sha256(crlf).hexdigest()
+    assert matches_text_sha(path, expected)

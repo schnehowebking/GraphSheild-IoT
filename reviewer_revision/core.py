@@ -36,6 +36,18 @@ def sha(path):
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
+def matches_text_sha(path, expected):
+    """Match a text artifact across Git CRLF/LF checkout normalization."""
+    raw = Path(path).read_bytes()
+    lf = raw.replace(b"\r\n", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    return expected in {
+        hashlib.sha256(raw).hexdigest(),
+        hashlib.sha256(lf).hexdigest(),
+        hashlib.sha256(crlf).hexdigest(),
+    }
+
+
 def object_hash(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
@@ -225,7 +237,7 @@ class RuntimeDetector:
         self.selection = read_json(self.directory / "threshold_selection.json")
         if self.selection["model_hash"] != sha(self.directory / "model.joblib"):
             raise ValueError("Model/threshold hash mismatch")
-        if self.selection["feature_schema_hash"] != sha(self.directory / "feature_schema.json"):
+        if not matches_text_sha(self.directory / "feature_schema.json", self.selection["feature_schema_hash"]):
             raise ValueError("Feature schema hash mismatch")
         self.features = read_json(self.directory / "feature_schema.json")["features"]
         if self.features != FEATURES:
