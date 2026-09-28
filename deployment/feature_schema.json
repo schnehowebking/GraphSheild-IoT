@@ -1,0 +1,29 @@
+{
+  "calibration": "none",
+  "estimator_preprocessing": {
+    "method": "none"
+  },
+  "features": [
+    "pkt_rate",
+    "byte_rate",
+    "pkt_sum",
+    "events",
+    "unique_src",
+    "src_ip_entropy",
+    "flow_count",
+    "flow_rate"
+  ],
+  "input_scaling": "none",
+  "missing_values": "reject",
+  "scaling": "none",
+  "units": [
+    "packets/second",
+    "bytes/second",
+    "packets",
+    "event_count",
+    "source_count",
+    "bits",
+    "flows",
+    "flows/second"
+  ]
+}
