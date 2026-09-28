@@ -235,6 +235,8 @@ class RuntimeDetector:
             directory = selection_path.parent
         self.directory = Path(directory)
         self.selection = read_json(self.directory / "threshold_selection.json")
+        if self.selection.get("registry_hash") != object_hash(self.registry):
+            raise ValueError("Threshold registry hash mismatch")
         if self.selection["model_hash"] != sha(self.directory / "model.joblib"):
             raise ValueError("Model/threshold hash mismatch")
         if not matches_text_sha(self.directory / "feature_schema.json", self.selection["feature_schema_hash"]):

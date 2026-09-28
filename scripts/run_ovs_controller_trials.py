@@ -36,6 +36,8 @@ from sdn import CompletedWindowController  # noqa: E402
 COOKIE_TRACK = "0x475401"
 COOKIE_METER = "0x475402"
 SERVER_IP = "10.253.0.3"
+DEFAULT_BENIGN_RATES = (0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0)
+DEFAULT_ATTACK_RATES = (5.0, 10.0, 20.0, 35.0, 50.0, 70.0)
 
 
 def command(args, *, check=True, text=True):
@@ -86,7 +88,9 @@ def binary_metrics(labels, predictions):
     fn = int(((y == 1) & (p == 0)).sum()); tp = int(((y == 1) & (p == 1)).sum())
     ratio = lambda a, b: float(a / b) if b else None
     precision, recall = ratio(tp, tp + fp), ratio(tp, tp + fn)
-    f1 = None if precision is None or recall is None or precision + recall == 0 else 2 * precision * recall / (precision + recall)
+    # The confusion-count definition is zero when TP=0 and FP+FN>0.  It is
+    # undefined only for an all-negative set with no positive prediction.
+    f1 = ratio(2 * tp, 2 * tp + fp + fn)
     undefined = []
     if precision is None: undefined.append("precision: zero predicted positives")
     if recall is None: undefined.append("recall: zero actual positives")
@@ -98,17 +102,22 @@ def binary_metrics(labels, predictions):
 
 
 class OvsLab:
-    def __init__(self, token, meter_rate_kbps):
+    def __init__(self, token, meter_rate_kbps, max_attackers=1):
+        if not 1 <= int(max_attackers) <= 8:
+            raise ValueError("max_attackers must be between 1 and 8")
         self.bridge = f"gs{token}"[:15]
-        self.namespaces = {"benign": f"{token}b", "attacker": f"{token}a", "server": f"{token}s"}
-        self.hosts = {"benign": "10.253.0.1", "attacker": "10.253.0.2", "server": SERVER_IP}
+        self.attackers = [f"attacker_{index}" for index in range(1, int(max_attackers) + 1)]
+        self.namespaces = {"benign": f"{token}b", "server": f"{token}s"}
+        self.namespaces.update({role: f"{token}a{index}" for index, role in enumerate(self.attackers, start=1)})
+        self.hosts = {"benign": "10.253.0.1", "server": SERVER_IP}
+        self.hosts.update({role: f"10.253.0.{10 + index}" for index, role in enumerate(self.attackers, start=1)})
         self.meter_rate_kbps = int(meter_rate_kbps)
         self.servers = []
 
     def setup(self):
         command(["ovs-vsctl", "add-br", self.bridge])
         command(["ovs-vsctl", "set", "bridge", self.bridge, "protocols=OpenFlow13", "fail_mode=standalone"])
-        for index, role in enumerate(["benign", "attacker", "server"], start=1):
+        for index, role in enumerate(["benign", *self.attackers, "server"], start=1):
             ns, outer, inner = self.namespaces[role], f"o{self.bridge}{index}"[:15], f"i{self.bridge}{index}"[:15]
             command(["ip", "netns", "add", ns])
             command(["ip", "link", "add", outer, "type", "veth", "peer", "name", inner])
@@ -119,10 +128,10 @@ class OvsLab:
             command(["ip", "netns", "exec", ns, "ip", "addr", "add", f"{self.hosts[role]}/24", "dev", inner])
             command(["ip", "netns", "exec", ns, "ip", "link", "set", inner, "up"])
         command(["ovs-ofctl", "-O", "OpenFlow13", "add-flow", self.bridge, "priority=0,actions=NORMAL"])
-        for src in [self.hosts["benign"], self.hosts["attacker"]]:
+        for src in [self.hosts["benign"], *[self.hosts[role] for role in self.attackers]]:
             flow = f"cookie={COOKIE_TRACK},priority=100,ip,nw_src={src},nw_dst={SERVER_IP},actions=NORMAL"
             command(["ovs-ofctl", "-O", "OpenFlow13", "add-flow", self.bridge, flow])
-        for port in [5201, 5202]:
+        for port in [5201, *[5201 + index for index in range(1, len(self.attackers) + 1)]]:
             self.servers.append(subprocess.Popen(
                 ["ip", "netns", "exec", self.namespaces["server"], "iperf3", "-s", "-p", str(port)],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
@@ -149,12 +158,18 @@ class OvsLab:
         if COOKIE_METER not in evidence or "meter=1" not in evidence:
             raise RuntimeError("Model-driven OpenFlow meter was not observable after installation")
 
-    def start_traffic(self, benign_mbps, attack_mbps, duration, log_dir):
+    def start_traffic(self, benign_mbps, attack_mbps, active_attackers, duration, log_dir):
         processes = []
-        specifications = [
-            ("benign", 5201, benign_mbps, "benign"),
-            *([("attacker", 5202, attack_mbps, "attack")] if attack_mbps > 0 else []),
-        ]
+        active_attackers = int(active_attackers)
+        if not 0 <= active_attackers <= len(self.attackers):
+            raise ValueError("active_attackers exceeds configured attacker namespaces")
+        specifications = [("benign", 5201, benign_mbps, "benign")]
+        if attack_mbps > 0:
+            if not active_attackers:
+                raise ValueError("Positive attack traffic requires at least one active attacker")
+            per_attacker = float(attack_mbps) / active_attackers
+            specifications.extend((role, 5201 + index, per_attacker, f"attack_{index:02d}")
+                                  for index, role in enumerate(self.attackers[:active_attackers], start=1))
         for role, port, rate, name in specifications:
             handle = (log_dir / f"iperf_{name}.json").open("w", encoding="utf-8")
             process = subprocess.Popen([
@@ -176,8 +191,8 @@ class OvsLab:
 
 
 @contextmanager
-def ovs_lab(token, meter_rate):
-    lab = OvsLab(token, meter_rate)
+def ovs_lab(token, meter_rate, max_attackers=1):
+    lab = OvsLab(token, meter_rate, max_attackers=max_attackers)
     try:
         lab.setup()
         yield lab
@@ -185,20 +200,23 @@ def ovs_lab(token, meter_rate):
         lab.close()
 
 
-def schedule(seed, benign_windows, attack_windows, recovery_windows):
+def schedule(seed, benign_windows, attack_windows, recovery_windows, max_attackers=1,
+             benign_rates=DEFAULT_BENIGN_RATES, attack_rates=DEFAULT_ATTACK_RATES):
     rng = np.random.default_rng(seed)
     rows = []
+    attacker_choices = sorted(set([1, min(2, int(max_attackers)), int(max_attackers)]))
     for phase, count in [("benign", benign_windows), ("attack", attack_windows), ("recovery", recovery_windows)]:
         for _ in range(count):
             rows.append({"phase": phase, "label": int(phase == "attack"),
-                         "benign_mbps": float(rng.choice([1.0, 1.5, 2.0, 3.0])),
-                         "attack_mbps": float(rng.choice([20.0, 35.0, 50.0, 70.0])) if phase == "attack" else 0.0})
+                         "benign_mbps": float(rng.choice(benign_rates)),
+                         "attack_mbps": float(rng.choice(attack_rates)) if phase == "attack" else 0.0,
+                         "active_attackers": int(rng.choice(attacker_choices)) if phase == "attack" else 0})
     return rows
 
 
 def collect_window(lab, item, seconds, poll_seconds, log_dir):
     previous = parse_flow_counters(lab.dump_flows())
-    traffic = lab.start_traffic(item["benign_mbps"], item["attack_mbps"], seconds, log_dir)
+    traffic = lab.start_traffic(item["benign_mbps"], item["attack_mbps"], item["active_attackers"], seconds, log_dir)
     packet_sum = byte_sum = flow_sum = events = 0
     sources, source_packets = [], Counter()
     deadline = time.monotonic() + seconds
@@ -207,12 +225,15 @@ def collect_window(lab, item, seconds, poll_seconds, log_dir):
         if remaining <= 0: break
         time.sleep(min(poll_seconds, remaining))
         current = parse_flow_counters(lab.dump_flows())
+        poll_had_traffic = False
         for src, (packets, bytes_) in current.items():
             old_packets, old_bytes = previous.get(src, (0, 0))
             dp, db = max(0, packets - old_packets), max(0, bytes_ - old_bytes)
             if dp or db:
-                packet_sum += dp; byte_sum += db; flow_sum += 1; events += 1
+                packet_sum += dp; byte_sum += db; flow_sum += 1; poll_had_traffic = True
                 sources.append(src); source_packets[src] += dp
+        if poll_had_traffic:
+            events += 1
         previous = current
     for process, handle in traffic:
         try: process.wait(timeout=3)
@@ -237,19 +258,26 @@ def run_trial(output, seed, setting, args):
     trial.mkdir()
     audit_enabled = setting == "audit_enabled"
     controller = CompletedWindowController(
-        detector=RuntimeDetector(directory=ROOT / "deployment", registry_path=ROOT / "configs/threshold_registry.json"),
+        detector=RuntimeDetector(directory=Path(args.deployment_dir).resolve(),
+                                 registry_path=Path(args.threshold_registry).resolve()),
         audit_path=trial / "audit.jsonl", audit_enabled=audit_enabled)
     rows, active_source = [], None
     token = f"g{os.getpid()%1000:03d}{seed%100:02d}{int(audit_enabled)}"
-    with ovs_lab(token, args.meter_rate_kbps) as lab:
+    with ovs_lab(token, args.meter_rate_kbps, args.max_attackers) as lab:
         capture = subprocess.Popen(
             ["tcpdump", "-i", "any", "-c", "2000", "-w", str(trial / "traffic_sample.pcap"),
              "net", "10.253.0.0/24"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         lab.servers.append(capture)
         (trial / "ovs_initial.txt").write_text(lab.dump_flows(), encoding="utf-8")
-        for index, item in enumerate(schedule(seed, args.benign_windows, args.attack_windows, args.recovery_windows)):
+        for index, item in enumerate(schedule(seed, args.benign_windows, args.attack_windows,
+                                              args.recovery_windows, args.max_attackers)):
             window_dir = trial / f"window_{index:03d}"; window_dir.mkdir()
-            features, dominant, throughput = collect_window(lab, item, args.window_seconds, args.poll_seconds, window_dir)
+            # Keep ground truth outside both feature extraction and inference.
+            # It is joined to the saved record only after the controller returns.
+            traffic_only = {key: item[key]
+                            for key in ["benign_mbps", "attack_mbps", "active_attackers"]}
+            features, dominant, throughput = collect_window(
+                lab, traffic_only, args.window_seconds, args.poll_seconds, window_dir)
             started = time.perf_counter_ns()
             response = controller.detect_completed_window(features, f"{platform.system()}-{seed}-{setting}-{index}")
             inference_ms = (time.perf_counter_ns() - started) / 1e6
@@ -263,6 +291,7 @@ def run_trial(output, seed, setting, args):
                 "seed": seed, "setting": setting, "window_index": index,
                 "phase": item["phase"], "label": item["label"],
                 "scheduled_benign_mbps": item["benign_mbps"], "scheduled_attack_mbps": item["attack_mbps"],
+                "scheduled_attackers": item["active_attackers"],
                 **features, "probability": response["probability"], "threshold": response["threshold"],
                 "prediction": response["prediction"], "action": response["action"],
                 "dominant_source": dominant, "rate_limited_source_for_next_window": active_source or "",
@@ -270,6 +299,8 @@ def run_trial(output, seed, setting, args):
                 "enforcement_latency_ms": enforcement_ms,
                 "measurement_type": "actual_single_host_ovs_runtime",
                 "ground_truth_use": "evaluation_only_after_inference",
+                "model_hash": response["model_hash"],
+                "threshold_selection_file": response["threshold_selection_file"],
             })
         controller.rollback_to_baseline()
         lab.clear_meter()
@@ -356,9 +387,34 @@ def main():
     parser.add_argument("--attack-windows", type=int, default=6)
     parser.add_argument("--recovery-windows", type=int, default=3)
     parser.add_argument("--meter-rate-kbps", type=int, default=1000)
+    parser.add_argument("--max-attackers", type=int, default=1)
+    parser.add_argument("--deployment-dir", default=str(ROOT / "deployment"))
+    parser.add_argument("--threshold-registry", default=str(ROOT / "configs/threshold_registry.json"))
+    parser.add_argument("--protocol-role", choices=["diagnostic", "confirmatory"], default="diagnostic")
+    parser.add_argument("--protocol", default=str(ROOT / "configs/ovs_experiment_protocol_v2.json"))
     parser.add_argument("--smoke", action="store_true")
     args = parser.parse_args()
     preflight()
+    if not 1 <= args.max_attackers <= 8:
+        raise ValueError("--max-attackers must be between 1 and 8")
+    deployment_dir = Path(args.deployment_dir).resolve()
+    threshold_registry = Path(args.threshold_registry).resolve()
+    detector = RuntimeDetector(directory=deployment_dir, registry_path=threshold_registry)
+    protocol_path = Path(args.protocol).resolve()
+    protocol_hash = None
+    if args.protocol_role == "confirmatory":
+        protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+        protocol_hash = sha256(protocol_path)
+        if args.max_attackers != int(protocol["traffic"]["maximum_attacker_namespaces"]):
+            raise ValueError("Confirmatory attacker count differs from the preregistered protocol")
+        if not args.smoke:
+            allowed = {(int(protocol[name]["seed_start"]), int(protocol[name]["runs"]))
+                       for name in ["confirmatory_kali", "confirmatory_ubuntu"]}
+            if (args.base_seed, args.trials) not in allowed:
+                raise ValueError("Confirmatory seed range differs from the preregistered protocol")
+        training_verification = deployment_dir / "training_verification.json"
+        if not training_verification.is_file() or not json.loads(training_verification.read_text())["passed"]:
+            raise ValueError("Confirmatory execution requires a verified OVS-trained deployment")
     output = Path(args.output).resolve()
     if output.exists(): raise FileExistsError(f"Refusing to overwrite {output}")
     output.mkdir(parents=True)
@@ -368,13 +424,19 @@ def main():
         "measurement_type": "actual_single_host_ovs_runtime", "paired_condition": "audit logging only",
         "canonical_features": FEATURES, "positive_action": "RATE_LIMIT",
         "ground_truth_policy": "predeclared phase label is withheld from inference",
+        "resolved_deployment_dir": str(deployment_dir), "resolved_threshold_registry": str(threshold_registry),
+        "model_hash": detector.selection["model_hash"], "operating_threshold": detector.threshold,
+        "metrics_definition": "confusion_count_f1_v2",
+        "protocol_sha256": protocol_hash,
     })
     (output / "experiment_configuration.json").write_text(json.dumps(configuration, indent=2) + "\n", encoding="utf-8")
     environment = {"created_at": datetime.now(timezone.utc).isoformat(), "os_release": platform.freedesktop_os_release(),
                    "platform": platform.platform(), "python": platform.python_version(),
                    "ovs": version(["ovs-vsctl", "--version"]), "iperf3": version(["iperf3", "--version"]),
-                   "kernel": platform.release(), "model_sha256": sha256(ROOT / "deployment/model.joblib"),
-                   "threshold_selection_sha256": sha256(ROOT / "deployment/threshold_selection.json")}
+                   "kernel": platform.release(), "model_sha256": sha256(deployment_dir / "model.joblib"),
+                   "threshold_selection_sha256": sha256(deployment_dir / "threshold_selection.json"),
+                   "feature_schema_sha256": sha256(deployment_dir / "feature_schema.json"),
+                   "threshold_registry_sha256": sha256(threshold_registry)}
     (output / "environment.json").write_text(json.dumps(environment, indent=2) + "\n", encoding="utf-8")
     trials = []
     for trial_index in range(args.trials):

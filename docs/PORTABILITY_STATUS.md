@@ -3,7 +3,8 @@
 Completed before publication of this folder:
 
 - Python syntax checks passed for runtime, OVS runner and verifiers.
-- Five platform-independent unit tests passed.
+- Thirteen platform-independent tests passed, including an end-to-end synthetic
+  OVS train/validation/model/threshold verification workflow.
 - Canonical model and feature-schema SHA-256 matched threshold metadata.
 - Original detector configuration and threshold-registry hashes were preserved.
 - Saved threshold `0.48702094063328466` loaded successfully under Python 3.13.3.
@@ -13,8 +14,11 @@ Completed before publication of this folder:
 Still required on each Linux host:
 
 - run `scripts/verify_environment.sh`;
-- run and verify the smoke experiment;
-- run 30 paired trials;
+- collect the fixed Kali training and later validation seed ranges;
+- train and verify `deployment_ovs_v2/` with zero test rows seen;
+- run the confirmatory smoke experiment;
+- run Kali's 30 fresh paired trials;
+- clone the frozen-model commit and run Ubuntu's separate 30 fresh paired trials;
 - preserve the generated verification report and checksums;
 - report Kali and Ubuntu results separately.
 

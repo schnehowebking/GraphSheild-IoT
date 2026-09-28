@@ -2,24 +2,40 @@
 
 ## Objective
 
-Measure the frozen GraphShield-IoT detector, audit path and rollback against
-real packet traffic and OpenFlow 1.3 counters on Kali and Ubuntu.
+Fit, select and measure one frozen GraphShield-IoT detector using semantically
+identical actual OpenFlow-counter features. Measure its audit path and rollback
+on Kali and Ubuntu without reusing pilot or test labels.
 
 ## Testbed
 
-Every execution creates a fresh OVS bridge and three Linux namespaces: one
-benign client, one attack client and one server. `iperf3` generates only traffic
-inside `10.253.0.0/24`. OVS tracking-flow counters are sampled once per second
-and aggregated into completed five-second switch-destination windows.
+Every execution creates a fresh OVS bridge, one benign client, one server and up
+to four attack-client Linux namespaces. `iperf3` generates traffic only inside
+`10.253.0.0/24`. OVS tracking-flow counters are sampled once per second and
+aggregated into completed five-second switch-destination windows.
 
 The eight inputs are packet rate, byte rate, packet sum, telemetry-event count,
-distinct source count, source-event Shannon entropy, observed-flow count and
-flow rate. The feature dictionary is checked against the canonical order before
-inference. The phase label is stored only after `detect_completed_window` returns.
+distinct source count, source-edge-observation Shannon entropy, nonzero
+source-service edge-observation count and its rate. `events` counts polling
+intervals with any traffic; `flow_count` counts active source-service edge
+observations across polls. The phase label is never passed to feature extraction
+or `detect_completed_window`.
+
+## Preregistered partitions
+
+- Seeds `42000–42029`: excluded pilot diagnostics; never reused.
+- Seeds `51000–51039`: enforcement-free model fitting.
+- Seeds `52000–52019`: later enforcement-free threshold validation.
+- Seeds `53000–53029`: untouched paired Kali confirmation.
+- Seeds `63000–63029`: untouched paired Ubuntu confirmation.
+
+Training and validation are whole-run partitions with disjoint seeds. Training
+must finish before validation starts. The threshold maximizes validation F1
+subject to the registered maximum FPR and deterministic tie-breaking. Test
+windows never enter fitting, feature selection or threshold selection.
 
 ## Paired design
 
-For each of 30 seeds, the audit-disabled and audit-enabled executions receive
+For each confirmatory set of 30 seeds, audit-disabled and audit-enabled executions receive
 the same ordered phases and requested traffic rates. Execution order alternates
 by seed to reduce order bias. Each default execution has three benign windows,
 six attack windows and three recovery windows. Audit logging is the configured
@@ -42,6 +58,9 @@ FNR, benign damage, inference latency, enforcement latency, throughput and audit
 bytes. Summaries include mean, sample standard deviation, median, 95% trial-level
 bootstrap CI, minimum, maximum and trial count. Paired audit differences use the
 same seeds and a fixed bootstrap seed.
+
+F1 uses `2TP/(2TP+FP+FN)`. It is zero when TP is zero and FP+FN is positive;
+it is undefined only when that denominator is zero.
 
 Kali and Ubuntu are reported separately. Cross-platform results are compared as
 an OS factor; they are not silently pooled as extra independent replications.

@@ -1,0 +1,35 @@
+{
+  "version": "ovs_runtime_v2",
+  "raw_probability_threshold": {
+    "value": 0.5,
+    "use": "diagnostic reference only; not the operating threshold"
+  },
+  "operating": {
+    "selection_file": "deployment_ovs_v2/threshold_selection.json",
+    "objective": "maximize validation F1",
+    "max_false_positive_rate": 0.05,
+    "tie_break": "higher recall, lower false-positive rate, then higher threshold",
+    "candidate_rule": "0, all unique validation probabilities, and nextafter(1,+inf) for no action",
+    "selection_split": "dedicated actual-OVS validation runs 52000-52019"
+  },
+  "runtime_safety_override": {
+    "enabled": false,
+    "reason": "No score scaling or test-informed threshold override"
+  },
+  "policy_action": {
+    "positive_action": "RATE_LIMIT",
+    "negative_action": "NONE",
+    "rule": "probability >= validation-selected operating threshold",
+    "block_enabled": false,
+    "risk_selector_max_benign_probability": 0.1
+  },
+  "external": {
+    "mode": "fixed frozen threshold",
+    "diagnostic_oracle_enabled": false,
+    "target_validation_recalibration_enabled": false
+  },
+  "legacy": {
+    "42000-42029": "excluded pilot seeds; feature-domain mismatch diagnostic only",
+    "0.48702094063328466": "legacy controlled-simulation threshold; not reused by OVS v2 unless independently reselected"
+  }
+}

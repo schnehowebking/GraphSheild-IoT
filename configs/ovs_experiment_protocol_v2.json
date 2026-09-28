@@ -1,0 +1,48 @@
+{
+  "version": "ovs_runtime_v2",
+  "purpose": "Leakage-free actual-OVS calibration and confirmatory evaluation after the excluded 42000-series pilot runs exposed feature-domain mismatch.",
+  "excluded_pilot": {
+    "seed_start": 42000,
+    "seed_end": 42029,
+    "use": "diagnostic only; never fit or select the v2 model"
+  },
+  "calibration_train": {
+    "seed_start": 51000,
+    "runs": 40,
+    "role": "model fitting only"
+  },
+  "calibration_validation": {
+    "seed_start": 52000,
+    "runs": 20,
+    "role": "threshold selection only"
+  },
+  "confirmatory_kali": {
+    "seed_start": 53000,
+    "runs": 30,
+    "role": "untouched test; audit paired"
+  },
+  "confirmatory_ubuntu": {
+    "seed_start": 63000,
+    "runs": 30,
+    "role": "cross-platform untouched test; audit paired"
+  },
+  "traffic": {
+    "window_seconds": 5,
+    "poll_seconds": 1.0,
+    "benign_windows": 3,
+    "attack_windows": 6,
+    "recovery_windows": 3,
+    "maximum_attacker_namespaces": 4,
+    "benign_total_mbps": [0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0],
+    "attack_total_mbps": [5.0, 10.0, 20.0, 35.0, 50.0, 70.0],
+    "active_attacker_counts": [1, 2, 4]
+  },
+  "governance": {
+    "labels_enter_feature_extraction": false,
+    "calibration_enforcement": false,
+    "test_labels_enter_inference": false,
+    "threshold_source": "calibration_validation only",
+    "test_reuse_for_fitting": false,
+    "seed_ranges_overlap": false
+  }
+}

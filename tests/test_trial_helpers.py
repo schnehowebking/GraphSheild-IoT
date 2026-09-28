@@ -1,5 +1,10 @@
-from scripts.run_ovs_controller_trials import FEATURES, binary_metrics, parse_flow_counters, schedule
-from reviewer_revision.core import matches_text_sha
+import json
+from pathlib import Path
+
+import pytest
+
+from scripts.run_ovs_controller_trials import FEATURES, OvsLab, binary_metrics, parse_flow_counters, schedule
+from reviewer_revision.core import RuntimeDetector, matches_text_sha
 
 
 def test_parse_tracking_flows():
@@ -16,7 +21,8 @@ def test_schedule_is_deterministic_and_balanced():
     first, second = schedule(42, 3, 6, 3), schedule(42, 3, 6, 3)
     assert first == second
     assert sum(row["label"] for row in first) == 6
-    assert all(set(row) == {"phase", "label", "benign_mbps", "attack_mbps"} for row in first)
+    assert all(set(row) == {"phase", "label", "benign_mbps", "attack_mbps", "active_attackers"}
+               for row in first)
 
 
 def test_metrics_recompute():
@@ -27,8 +33,23 @@ def test_metrics_recompute():
 
 def test_undefined_precision_is_explicit():
     result = binary_metrics([0, 1], [0, 0])
-    assert result["precision"] is None and result["f1"] is None
+    assert result["precision"] is None and result["f1"] == 0.0
     assert "zero predicted positives" in result["undefined_metrics"]
+
+
+def test_f1_is_undefined_only_for_all_negative_no_action():
+    result = binary_metrics([0, 0], [0, 0])
+    assert result["f1"] is None
+    assert "f1: zero denominator" in result["undefined_metrics"]
+
+
+def test_multisource_schedule_stays_within_declared_attacker_count():
+    rows = schedule(51000, 3, 30, 3, max_attackers=4)
+    attack_counts = {row["active_attackers"] for row in rows if row["label"] == 1}
+    assert attack_counts.issubset({1, 2, 4}) and len(attack_counts) >= 2
+    assert all(row["active_attackers"] == 0 for row in rows if row["label"] == 0)
+    lab = OvsLab("test", 1000, max_attackers=4)
+    assert len(lab.attackers) == len({lab.hosts[role] for role in lab.attackers}) == 4
 
 
 def test_canonical_feature_order_is_fixed():
@@ -43,3 +64,13 @@ def test_text_hash_accepts_git_newline_normalization(tmp_path):
     path.write_bytes(lf)
     expected = __import__("hashlib").sha256(crlf).hexdigest()
     assert matches_text_sha(path, expected)
+
+
+def test_runtime_rejects_threshold_registry_mismatch(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    registry = json.loads((root / "configs/threshold_registry.json").read_text(encoding="utf-8"))
+    registry["operating"]["max_false_positive_rate"] = 0.123
+    changed = tmp_path / "registry.json"
+    changed.write_text(json.dumps(registry), encoding="utf-8")
+    with pytest.raises(ValueError, match="registry hash"):
+        RuntimeDetector(directory=root / "deployment", registry_path=changed)

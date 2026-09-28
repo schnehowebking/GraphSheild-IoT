@@ -1,0 +1,49 @@
+{
+  "version": "ovs_runtime_v2",
+  "model_family": "RandomForestClassifier",
+  "hyperparameters": {
+    "n_estimators": 240,
+    "min_samples_leaf": 2,
+    "class_weight": "balanced",
+    "random_state": 42,
+    "n_jobs": 1
+  },
+  "features": [
+    "pkt_rate",
+    "byte_rate",
+    "pkt_sum",
+    "events",
+    "unique_src",
+    "src_ip_entropy",
+    "flow_count",
+    "flow_rate"
+  ],
+  "units": [
+    "packets/second",
+    "bytes/second",
+    "packets/window",
+    "poll intervals with observed traffic/window",
+    "distinct controller-observed sources/window",
+    "bits over active source-edge observations",
+    "nonzero source-service edge observations across polls/window",
+    "nonzero source-service edge observations/second"
+  ],
+  "window_seconds": 5,
+  "window_scope": "completed OpenFlow switch-destination window from counter deltas",
+  "feature_semantics": {
+    "pkt_rate": "sum of positive tracking-rule packet deltas divided by window duration",
+    "byte_rate": "sum of positive tracking-rule byte deltas divided by window duration",
+    "pkt_sum": "sum of positive tracking-rule packet deltas",
+    "events": "number of polling intervals containing any positive packet or byte delta",
+    "unique_src": "number of distinct source addresses with a positive delta",
+    "src_ip_entropy": "Shannon entropy of source identities across nonzero source-edge observations",
+    "flow_count": "count of nonzero source-service tracking-edge observations across all polls",
+    "flow_rate": "flow_count divided by window duration"
+  },
+  "missing_values": "reject missing columns; reject nonnumeric, NaN and infinite values",
+  "scaling": "none",
+  "calibration": "none; forest vote probabilities are not claimed calibrated",
+  "split_procedure": "actual OVS whole-run training followed by disjoint later whole-run validation; untouched confirmatory seeds excluded",
+  "model_artifact_path": "deployment_ovs_v2/model.joblib",
+  "threshold_registry": "configs/threshold_registry_ovs_v2.json"
+}
