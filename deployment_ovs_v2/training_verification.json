@@ -1,0 +1,27 @@
+{
+  "deployment_checksums_verified": 7,
+  "disjoint_seed_sets": true,
+  "feature_order": [
+    "pkt_rate",
+    "byte_rate",
+    "pkt_sum",
+    "events",
+    "unique_src",
+    "src_ip_entropy",
+    "flow_count",
+    "flow_rate"
+  ],
+  "label_column_rejected": true,
+  "model_sha256": "f71dce8494d7d169d50ec31bd4ba7cecb04939e11179f33ffc88b3d4a549afb6",
+  "passed": true,
+  "selected_threshold": 0.9639583333333334,
+  "selection_split": "dedicated actual-OVS validation only",
+  "temporal_ordering": true,
+  "test_rows_seen": 0,
+  "train_collection_checksums_verified": 1214,
+  "train_rows": 480,
+  "train_runs": 40,
+  "validation_collection_checksums_verified": 605,
+  "validation_rows": 240,
+  "validation_runs": 20
+}

@@ -1,0 +1,25 @@
+{
+  "calibration": "none",
+  "features": [
+    "pkt_rate",
+    "byte_rate",
+    "pkt_sum",
+    "events",
+    "unique_src",
+    "src_ip_entropy",
+    "flow_count",
+    "flow_rate"
+  ],
+  "missing_values": "reject",
+  "scaling": "none",
+  "units": [
+    "packets/second",
+    "bytes/second",
+    "packets/window",
+    "poll intervals with observed traffic/window",
+    "distinct controller-observed sources/window",
+    "bits over active source-edge observations",
+    "nonzero source-service edge observations across polls/window",
+    "nonzero source-service edge observations/second"
+  ]
+}

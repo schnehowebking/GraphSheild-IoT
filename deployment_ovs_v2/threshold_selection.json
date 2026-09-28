@@ -1,0 +1,36 @@
+{
+  "constraints": {
+    "max_fpr": 0.05
+  },
+  "feature_schema_hash": "287d361ab8e8e315b1a3d64ba49cc07aaf89987e110b8e6860e287933b758f03",
+  "model_hash": "f71dce8494d7d169d50ec31bd4ba7cecb04939e11179f33ffc88b3d4a549afb6",
+  "objective": "maximize validation F1",
+  "registry_hash": "1e6037e86461ac5a81378fc0b67a4b5ad93a5063c9d0f0aab87d5ea8187b212c",
+  "selected_value": 0.9639583333333334,
+  "selection_dataset_hash": "9ec94bd1c52aa01f86652872f1234d61fedfc2cbbf44cdd8a344041b9ee51814",
+  "selection_run_ids": [
+    "ovs_validation_00052000",
+    "ovs_validation_00052001",
+    "ovs_validation_00052002",
+    "ovs_validation_00052003",
+    "ovs_validation_00052004",
+    "ovs_validation_00052005",
+    "ovs_validation_00052006",
+    "ovs_validation_00052007",
+    "ovs_validation_00052008",
+    "ovs_validation_00052009",
+    "ovs_validation_00052010",
+    "ovs_validation_00052011",
+    "ovs_validation_00052012",
+    "ovs_validation_00052013",
+    "ovs_validation_00052014",
+    "ovs_validation_00052015",
+    "ovs_validation_00052016",
+    "ovs_validation_00052017",
+    "ovs_validation_00052018",
+    "ovs_validation_00052019"
+  ],
+  "selection_split": "validation",
+  "selection_timestamp": "2026-09-28T16:40:17.287410+00:00",
+  "tie_break": "higher recall, lower false-positive rate, then higher threshold"
+}
