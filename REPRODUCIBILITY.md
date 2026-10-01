@@ -1,5 +1,7 @@
 # Reviewer reproduction guide
 
+Archived release: [GraphShield-IoT v1.0.0 on Zenodo](https://doi.org/10.5281/zenodo.23084542).
+
 ## Claims and verification commands
 
 | Claim area | Evidence | Verification |

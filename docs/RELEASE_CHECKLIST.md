@@ -9,7 +9,7 @@
 7. Confirm no raw datasets, manuscript files, credentials, virtual environments or superseded pilot results are tracked.
 8. Commit and push the exact reviewed state.
 9. Enable the public repository in Zenodo before publishing the GitHub release.
-10. Create GitHub tag and release `v1.0.0`, wait for Zenodo archival, then record the release-specific DOI in the manuscript and response letter.
+10. GitHub release `v1.0.0` is archived by Zenodo as DOI `10.5281/zenodo.23084542`; record this release-specific DOI in the manuscript and response letter.
 
 If the authors later replace the research-evaluation license with an open-source
 license, make that change before tagging and describe it in the release notes.

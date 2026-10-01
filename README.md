@@ -112,5 +112,5 @@ information, virtual environments and superseded pilot results are excluded.
 Use `CITATION.cff` to cite this exact software release. The current
 research-evaluation license permits non-commercial peer-review and reproducibility
 verification while reserving redistribution and commercial rights. See `LICENSE`.
-The release DOI will be added to the manuscript after Zenodo archives tag
-`v1.0.0`.
+The immutable `v1.0.0` archive is available from Zenodo at
+[https://doi.org/10.5281/zenodo.23084542](https://doi.org/10.5281/zenodo.23084542).
