@@ -146,11 +146,13 @@ class OvsLab:
                  f"cookie={COOKIE_METER}/0xffffffffffffffff"], check=False)
         command(["ovs-ofctl", "-O", "OpenFlow13", "del-meters", self.bridge], check=False)
 
-    def set_rate_limit(self, source_ip):
+    def set_rate_limit(self, source_ip, ttl_seconds=15):
+        if not 1 <= int(ttl_seconds) <= 30:
+            raise ValueError("Meter rule TTL must be 1..30 seconds")
         self.clear_meter()
         meter = f"meter=1,kbps,band=type=drop,rate={self.meter_rate_kbps}"
         command(["ovs-ofctl", "-O", "OpenFlow13", "add-meter", self.bridge, meter])
-        flow = (f"cookie={COOKIE_METER},priority=300,ip,nw_src={source_ip},nw_dst={SERVER_IP},"
+        flow = (f"cookie={COOKIE_METER},hard_timeout={int(ttl_seconds)},priority=300,ip,nw_src={source_ip},nw_dst={SERVER_IP},"
                 "actions=meter:1,NORMAL")
         command(["ovs-ofctl", "-O", "OpenFlow13", "add-flow", self.bridge, flow])
         evidence = self.dump_flows() + "\n" + command(
@@ -218,7 +220,7 @@ def collect_window(lab, item, seconds, poll_seconds, log_dir):
     previous = parse_flow_counters(lab.dump_flows())
     traffic = lab.start_traffic(item["benign_mbps"], item["attack_mbps"], item["active_attackers"], seconds, log_dir)
     packet_sum = byte_sum = flow_sum = events = 0
-    sources, source_packets = [], Counter()
+    sources, source_packets, source_bytes = [], Counter(), Counter()
     deadline = time.monotonic() + seconds
     while True:
         remaining = deadline - time.monotonic()
@@ -231,7 +233,7 @@ def collect_window(lab, item, seconds, poll_seconds, log_dir):
             dp, db = max(0, packets - old_packets), max(0, bytes_ - old_bytes)
             if dp or db:
                 packet_sum += dp; byte_sum += db; flow_sum += 1; poll_had_traffic = True
-                sources.append(src); source_packets[src] += dp
+                sources.append(src); source_packets[src] += dp; source_bytes[src] += db
         if poll_had_traffic:
             events += 1
         previous = current
@@ -249,7 +251,11 @@ def collect_window(lab, item, seconds, poll_seconds, log_dir):
         "flow_rate": float((flow_sum if flow_sum else events) / seconds),
     }
     assert list(features) == FEATURES and all(math.isfinite(v) and v >= 0 for v in features.values())
-    dominant = source_packets.most_common(1)[0][0] if source_packets else lab.hosts["benign"]
+    observations = [{"source_ip": ip, "packets": int(source_packets[ip]),
+                     "bytes": int(source_bytes[ip]), "duration_seconds": float(seconds)}
+                    for ip in sorted(source_packets)]
+    (log_dir / "source_observations.json").write_text(json.dumps(observations, indent=2) + "\n", encoding="utf-8")
+    dominant = source_packets.most_common(1)[0][0] if source_packets else None
     return features, dominant, byte_sum * 8 / seconds / 1_000_000
 
 
@@ -257,10 +263,14 @@ def run_trial(output, seed, setting, args):
     trial = output / f"seed_{seed:08d}_{setting}"
     trial.mkdir()
     audit_enabled = setting == "audit_enabled"
+    from reviewer_revision.source_selector import SourceSelector
+    safety_policy = getattr(args, "source_policy", None)
+    selector = SourceSelector(safety_policy) if safety_policy else None
+    enforcement_enabled = setting != "mitigation_disabled"
     controller = CompletedWindowController(
         detector=RuntimeDetector(directory=Path(args.deployment_dir).resolve(),
                                  registry_path=Path(args.threshold_registry).resolve()),
-        audit_path=trial / "audit.jsonl", audit_enabled=audit_enabled)
+        audit_path=trial / "audit.jsonl", audit_enabled=audit_enabled, source_selector=selector)
     rows, active_source = [], None
     token = f"g{os.getpid()%1000:03d}{seed%100:02d}{int(audit_enabled)}"
     with ovs_lab(token, args.meter_rate_kbps, args.max_attackers) as lab:
@@ -269,8 +279,13 @@ def run_trial(output, seed, setting, args):
              "net", "10.253.0.0/24"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         lab.servers.append(capture)
         (trial / "ovs_initial.txt").write_text(lab.dump_flows(), encoding="utf-8")
+        # Ground-truth mapping is evaluation metadata; never passed to controller.
+        (trial / "source_truth.json").write_text(json.dumps(
+            {ip: int(role in lab.attackers) for role, ip in lab.hosts.items() if role != "server"}, indent=2), encoding="utf-8")
         for index, item in enumerate(schedule(seed, args.benign_windows, args.attack_windows,
-                                              args.recovery_windows, args.max_attackers)):
+                                              args.recovery_windows, args.max_attackers,
+                                              getattr(args, "benign_rates", DEFAULT_BENIGN_RATES),
+                                              getattr(args, "attack_rates", DEFAULT_ATTACK_RATES))):
             window_dir = trial / f"window_{index:03d}"; window_dir.mkdir()
             # Keep ground truth outside both feature extraction and inference.
             # It is joined to the saved record only after the controller returns.
@@ -279,14 +294,23 @@ def run_trial(output, seed, setting, args):
             features, dominant, throughput = collect_window(
                 lab, traffic_only, args.window_seconds, args.poll_seconds, window_dir)
             started = time.perf_counter_ns()
-            response = controller.detect_completed_window(features, f"{platform.system()}-{seed}-{setting}-{index}")
+            observations = json.loads((window_dir / "source_observations.json").read_text())
+            response = controller.detect_completed_window(features, f"{platform.system()}-{seed}-{setting}-{index}",
+                       source_observations=observations, window_index=index, enforcement_enabled=enforcement_enabled)
             inference_ms = (time.perf_counter_ns() - started) / 1e6
             enforcement_started = time.perf_counter_ns()
             if response["action"] == "RATE_LIMIT":
-                lab.set_rate_limit(dominant); active_source = dominant
+                lab.set_rate_limit(response["target_source"], response["rule_ttl_seconds"]); active_source = response["target_source"]
             else:
                 lab.clear_meter(); active_source = None
             enforcement_ms = (time.perf_counter_ns() - enforcement_started) / 1e6
+            enforcement_record = {"window_index": index, "selected_action": response["action"],
+                "target_source": active_source, "applies_to_window": index + 1,
+                "rule_ttl_seconds": response["rule_ttl_seconds"], "observed_flows": lab.dump_flows()}
+            if response["action"] == "NONE" and COOKIE_METER in enforcement_record["observed_flows"]:
+                raise RuntimeError("NONE action failed to remove active meter flow")
+            (window_dir / "enforcement.json").write_text(json.dumps(enforcement_record, indent=2), encoding="utf-8")
+            controller.record_enforcement(enforcement_record)
             rows.append({
                 "seed": seed, "setting": setting, "window_index": index,
                 "phase": item["phase"], "label": item["label"],
@@ -294,6 +318,11 @@ def run_trial(output, seed, setting, args):
                 "scheduled_attackers": item["active_attackers"],
                 **features, "probability": response["probability"], "threshold": response["threshold"],
                 "prediction": response["prediction"], "action": response["action"],
+                "baseline_action": response["baseline_action"], "proposed_action": response["proposed_action"],
+                "proposed_target": response["proposed_target"], "safety_reason": response["safety_reason"],
+                "input_feature_hash": response["input_feature_hash"],
+                "source_observations_hash": response["source_observations_hash"],
+                "source_policy_hash": response["source_policy_hash"],
                 "dominant_source": dominant, "rate_limited_source_for_next_window": active_source or "",
                 "observed_throughput_mbps": throughput, "inference_latency_ms": inference_ms,
                 "enforcement_latency_ms": enforcement_ms,
@@ -314,6 +343,8 @@ def run_trial(output, seed, setting, args):
             except subprocess.TimeoutExpired: capture.kill(); capture.wait()
     pd.DataFrame(rows).to_csv(trial / "window_results.csv", index=False)
     metric = binary_metrics([r["label"] for r in rows], [r["prediction"] for r in rows])
+    if getattr(args, "safety_v3", False):
+        metric["window_false_positive_rate"] = metric.pop("benign_damage")
     metric.update({"seed": seed, "setting": setting, "windows": len(rows),
                    "inference_p50_ms": float(np.percentile([r["inference_latency_ms"] for r in rows], 50)),
                    "inference_p90_ms": float(np.percentile([r["inference_latency_ms"] for r in rows], 90)),
@@ -394,6 +425,7 @@ def main():
     parser.add_argument("--protocol", default=str(ROOT / "configs/ovs_experiment_protocol_v2.json"))
     parser.add_argument("--smoke", action="store_true")
     args = parser.parse_args()
+    raise RuntimeError("Legacy dominant-source protocol retired. Use scripts/run_ovs_safety.py; see docs/OVS_SAFETY_V3.md")
     preflight()
     if not 1 <= args.max_attackers <= 8:
         raise ValueError("--max-attackers must be between 1 and 8")

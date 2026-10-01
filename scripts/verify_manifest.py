@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TEXT_SUFFIXES = {".cff", ".csv", ".json", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"}
+TEXT_SUFFIXES = {".sha256", ".cff", ".csv", ".json", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"}
 TEXT_NAMES = {".gitattributes", ".gitignore", "LICENSE"}
 
 

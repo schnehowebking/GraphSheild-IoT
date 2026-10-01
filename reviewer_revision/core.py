@@ -263,6 +263,7 @@ class RuntimeDetector:
         return float(self.predict_proba_or_action(pd.DataFrame([{k: features[k] for k in self.features}]))[0])
 
     def decide(self, features):
+        """Window classification and baseline proposal, NOT source/enforcement authorization."""
         p = self.predict_proba_1(features)
         return {"probability": p, "prediction": int(p >= self.threshold), "threshold": self.threshold,
                 "action": "RATE_LIMIT" if p >= self.threshold else "NONE",

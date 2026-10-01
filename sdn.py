@@ -419,21 +419,44 @@ class CompletedWindowController:
 
     Local software execution is measurable; OpenFlow enforcement is not implied.
     """
-    def __init__(self, detector=None, audit_path=None, audit_enabled=True):
+    def __init__(self, detector=None, audit_path=None, audit_enabled=True, source_selector=None):
         self.detector = detector or RuntimeDetector()
         self.audit_path = Path(audit_path or ROOT / "results/reviewer_revision_v1/runtime_audit.jsonl")
         self.audit_enabled = bool(audit_enabled)
+        self.source_selector = source_selector
         self.shadow_policy = None
         self.mode = "baseline_only"
 
-    def detect_completed_window(self, features, row_id):
+    def detect_completed_window(self, features, row_id, *, source_observations=None,
+                                window_index=None, enforcement_enabled=True):
+        from reviewer_revision.source_selector import canonical_hash
         decision = self.detector.decide(features)
+        decision["baseline_action"] = decision["action"]
+        decision["input_feature_hash"] = canonical_hash(features)
+        decision["source_observations_hash"] = canonical_hash(source_observations)
+        if self.source_selector is None:
+            decision.update(action="NONE", target_source=None,
+                            safety_reason="source_selector_unavailable", candidate_sources=[],
+                            source_policy_hash=None, rule_ttl_seconds=0)
+        else:
+            decision.update(self.source_selector.select(source_observations,
+                            prediction=decision["prediction"], window_index=window_index))
+        decision["proposed_action"] = decision["action"]
+        decision["proposed_target"] = decision["target_source"]
+        if not enforcement_enabled:
+            decision.update(action="NONE", target_source=None)
+        decision["enforcement_enabled"] = bool(enforcement_enabled)
         decision.update({"row_id": str(row_id), "mode": self.mode, "shadow_action": None})
         if self.shadow_policy is not None and self.mode == "shadow":
             decision["shadow_action"] = self.shadow_policy(dict(features))
         if self.audit_enabled:
             append_hash_chained_jsonl(self.audit_path, decision)
         return decision
+
+    def record_enforcement(self, record):
+        """Record observed enforcement separately from the decision/proposal."""
+        if self.audit_enabled:
+            append_hash_chained_jsonl(self.audit_path, {"event": "enforcement_observation", **record})
 
     def rollback_to_baseline(self):
         self.shadow_policy = None

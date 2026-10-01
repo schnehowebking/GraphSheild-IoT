@@ -1,0 +1,75 @@
+{
+  "version": "ovs_safety_v3",
+  "status": "prospective development protocol; no v3 results yet",
+  "development": {
+    "seed_start": 71000,
+    "runs": 40
+  },
+  "validation": {
+    "seed_start": 72000,
+    "runs": 20
+  },
+  "confirmatory_kali": {
+    "seed_start": 73000,
+    "runs": 30
+  },
+  "confirmatory_ubuntu": {
+    "seed_start": 83000,
+    "runs": 30
+  },
+  "traffic": {
+    "window_seconds": 5,
+    "poll_seconds": 1.0,
+    "benign_windows": 3,
+    "attack_windows": 6,
+    "recovery_windows": 3,
+    "maximum_attacker_namespaces": 4,
+    "benign_rates_mbps": [
+      0.5,
+      1,
+      1.5,
+      2,
+      3,
+      5,
+      8,
+      12,
+      20
+    ],
+    "attack_rates_mbps": [
+      5,
+      10,
+      20,
+      35,
+      50,
+      70
+    ]
+  },
+  "selector_search": {
+    "training_statistic": "maximum observed benign source byte_rate in development reference trials",
+    "threshold_multipliers": [
+      1,
+      1.25,
+      1.5,
+      2
+    ],
+    "persistence_candidates": [
+      1,
+      2
+    ],
+    "max_validation_benign_target_rate": 0.01,
+    "objective": "maximize correctly targeted attack-source windows subject to benign-target rate constraint",
+    "tie_break": "fewer benign targets, larger threshold, longer persistence",
+    "no_feasible_candidate": "abstain always"
+  },
+  "rule_ttl_seconds": 15,
+  "meter_rate_kbps": 1000,
+  "bootstrap_seed": 20261002,
+  "claim_limit": "Empirical rate-exceedance safeguard; not calibrated attribution or a formal risk bound.",
+  "confirmatory_conditions": [
+    "mitigation_disabled",
+    "audit_disabled",
+    "audit_enabled"
+  ],
+  "pairing": "matched schedules/seeds; measured inputs may differ; rotating six condition permutations",
+  "historical_v2": "development diagnostics only for revised safety policy; never reuse as v3 confirmation"
+}

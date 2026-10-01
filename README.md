@@ -1,3 +1,9 @@
+> **Safety revision v3 (development, not yet live-validated):** the v2 dominant-source
+> enforcement entrypoint is retired after benign-source targeting was found in saved
+> trials. Use [OVS_SAFETY_V3.md](docs/OVS_SAFETY_V3.md) for the new analysis, calibration,
+> validation and three-condition confirmation workflow. Historical v2 evidence remains
+> unchanged; its window FPR must not be described as zero benign-service harm.
+
 # GraphShield-IoT reproducibility repository
 
 This repository contains the executable code, frozen configurations, trained
