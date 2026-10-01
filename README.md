@@ -1,159 +1,116 @@
-# GraphShield IoT actual OVS controller trials
+# GraphShield-IoT reproducibility repository
 
-This repository runs the frozen GraphShield-IoT canonical detector through real
-Linux network namespaces, Open vSwitch counters, `iperf3` traffic, model-driven
-OpenFlow rate limiting, audit logging and rollback. It supports Kali Linux and
-Ubuntu on an authorized single-host lab.
+This repository contains the executable code, frozen configurations, trained
+detectors, row-level evidence, automated checks and actual Open vSwitch (OVS)
+measurements used for the revised GraphShield-IoT evaluation. It addresses the
+reviewer's concerns about temporal reliability, graph-policy validity, detector
+identity, threshold governance and reproducibility.
 
-The bundled `deployment/` model is retained only to reproduce the excluded
-42000-series pilot runs. Those pilots exposed a simulator-to-OVS feature-domain
-mismatch and are not efficacy evidence. The v2 workflow collects
-enforcement-free actual-OVS fitting and validation runs, freezes a new
-`RandomForestClassifier` and validation-only threshold in `deployment_ovs_v2/`,
-then evaluates untouched Kali and Ubuntu seeds. Labels never enter feature
-extraction or runtime inference.
+The evidence has two deliberately separate scopes:
 
-## Included
+1. `reviewer_revision_v1_evidence.zip` contains controlled timestamped
+   simulation, non-overlapping forward-chaining folds, validation-only threshold
+   selection, graph-policy predictions, external fixed-threshold diagnostic
+   transfer and row-level metric evidence.
+2. `actual_ovs_kali_confirmatory_v2.zip` and
+   `actual_ovs_ubuntu_confirmatory_v2.zip` contain actual single-host OVS trials:
+   30 paired seeds, 60 executions and 720 completed windows per operating system.
 
-- `deployment/`: model, feature schema, metadata, validation curve and threshold selection.
-- `configs/`: unchanged canonical detector and threshold registry for provenance; the portable runner supplies `deployment/` explicitly.
-- `reviewer_revision/`: strict saved-model loader and feature validation.
-- `sdn.py`: `CompletedWindowController` inference and audit path.
-- `integration/`: hash-linked JSONL audit implementation.
-- `scripts/run_ovs_controller_trials.py`: real traffic, OVS telemetry, inference, meter enforcement and rollback.
-- `scripts/collect_ovs_calibration.py`: enforcement-free actual-OVS fitting/validation collection.
-- `scripts/train_ovs_detector.py`: whole-run fitting and validation-only threshold selection.
-- `scripts/verify_ovs_detector.py`: split, source, model and threshold provenance verification.
-- `scripts/run_ovs_confirmatory.sh`: fixed fresh seed ranges for Kali and Ubuntu confirmation.
-- `scripts/verify_ovs_controller_trials.py`: independent row-level, pairing, threshold, rollback and checksum verification.
-- `tests/`: platform-independent helper tests.
+The frozen OVS detector is `deployment_ovs_v2/model.joblib`. Its operating
+threshold is `0.9639583333333334`, selected only from the 20 validation runs in
+`deployment_ovs_v2/threshold_selection.json`. Labels never enter runtime feature
+construction or inference.
 
-Raw datasets, manuscript files, old results and Python virtual environments are
-intentionally excluded.
+## Five-minute reviewer verification
 
-## Kali and Ubuntu installation
+Python 3.13 is required for serialized-model parity. On Linux or macOS:
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL GraphShield-IoT
-cd GraphShield-IoT
+git clone https://github.com/schnehowebking/GraphSheild-IoT.git
+cd GraphSheild-IoT
+python3.13 -m venv .venv
+.venv/bin/python -m pip install --only-binary=:all: -r requirements-lock.txt
+.venv/bin/python scripts/verify_manifest.py
+.venv/bin/python scripts/verify_release_archives.py
+.venv/bin/python -m pytest tests -q
+```
+
+On Windows, replace `.venv/bin/python` with `.venv\Scripts\python.exe`.
+The archive verifier checks every embedded SHA-256 checksum, validates both OVS
+verification reports and independently recomputes temporal, policy, stress,
+topology, external, confidence-interval and paired-comparison results from the
+saved row-level records.
+
+## Rebuild the controlled reviewer evaluation
+
+The five processed feature-compatible external inputs are included under
+`data/external/processed/`; their provenance and diagnostic limitations are
+documented in `data/README.md`. Generate a fresh versioned directory with:
+
+```bash
+.venv/bin/python scripts/run_reviewer_revision.py \
+  --output results/reviewer_reproduction_v1
+.venv/bin/python -m reviewer_revision.verify \
+  results/reviewer_reproduction_v1
+```
+
+The pipeline refuses to overwrite an existing output directory. It records all
+seeds, input/source hashes, environment versions, thresholds, fold boundaries,
+row-level predictions, uncertainty estimates and table files. Timing values can
+vary by host; deterministic predictions and aggregate classification metrics are
+the reproducibility targets.
+
+## Reproduce the actual OVS experiment
+
+Use an authorized Kali or Ubuntu host. The runner creates only isolated network
+namespaces and an ephemeral OVS bridge in `10.253.0.0/24`.
+
+```bash
 chmod +x scripts/*.sh
 bash scripts/setup_linux.sh --install-system
 bash scripts/verify_environment.sh
 ```
 
-Python 3.13 is required for saved-model parity. If the distribution does not
-provide it, install a Python 3.13 release with `pyenv`, then run:
-
-```bash
-PYTHON_BIN="$(pyenv prefix 3.13)/bin/python" bash scripts/setup_linux.sh
-```
-
-No repartitioning, container runtime or Mininet installation is required.
-
-## Pilot boundary
-
-Seeds `42000–42029`, the bundled `deployment/` model and threshold
-`0.48702094063328466` are diagnostic pilot evidence only. Never use those
-windows for v2 fitting, threshold selection or confirmatory evaluation.
-
-## Step 1: calibration collector smoke test
-
-Run once on Kali. The smoke output is environment evidence only.
-
-```bash
-sudo .venv/bin/python scripts/collect_ovs_calibration.py \
-  --role train --smoke --output results/ovs_calibration_smoke
-sudo chown -R "$(id -u):$(id -g)" results/ovs_calibration_smoke
-```
-
-## Step 2: collect fitting and validation runs on Kali
-
-The protocol fixes 40 fitting seeds (`51000–51039`) and 20 later validation
-seeds (`52000–52019`). Collection applies no inference or mitigation.
-
-```bash
-sudo .venv/bin/python scripts/collect_ovs_calibration.py \
-  --role train --output results/ovs_calibration_train_v2
-sudo chown -R "$(id -u):$(id -g)" results/ovs_calibration_train_v2
-
-sudo .venv/bin/python scripts/collect_ovs_calibration.py \
-  --role validation --output results/ovs_calibration_validation_v2
-sudo chown -R "$(id -u):$(id -g)" results/ovs_calibration_validation_v2
-```
-
-## Step 3: freeze and verify the OVS detector
-
-```bash
-.venv/bin/python scripts/train_ovs_detector.py \
-  --train results/ovs_calibration_train_v2 \
-  --validation results/ovs_calibration_validation_v2 \
-  --output deployment_ovs_v2
-
-.venv/bin/python scripts/verify_ovs_detector.py \
-  --train results/ovs_calibration_train_v2 \
-  --validation results/ovs_calibration_validation_v2 \
-  --deployment deployment_ovs_v2
-```
-
-The verifier must report `test_rows_seen: 0`, disjoint seeds, chronological
-ordering, label-column rejection and the reproduced validation threshold.
-
-## Step 4: confirmatory smoke test
-
-```bash
-sudo .venv/bin/python scripts/run_ovs_controller_trials.py \
-  --smoke --base-seed 52999 --max-attackers 4 \
-  --deployment-dir deployment_ovs_v2 \
-  --threshold-registry configs/threshold_registry_ovs_v2.json \
-  --protocol-role confirmatory \
-  --output results/actual_ovs_kali_confirmatory_smoke
-sudo chown -R "$(id -u):$(id -g)" results/actual_ovs_kali_confirmatory_smoke
-.venv/bin/python scripts/verify_ovs_controller_trials.py \
-  results/actual_ovs_kali_confirmatory_smoke \
-  --deployment-dir deployment_ovs_v2 \
-  --threshold-registry configs/threshold_registry_ovs_v2.json
-```
-
-## Step 5: full confirmatory experiments
-
-Kali uses untouched seeds `53000–53029`. Commit the frozen deployment artifacts,
-clone that exact commit on Ubuntu, then use Ubuntu seeds `63000–63029`.
+The enforcement-free calibration source is preserved in
+`ovs_calibration_v2.zip`. To collect new fitting and validation runs and refit
+the frozen OVS detector, follow `docs/EXPERIMENT_PROTOCOL.md`. To repeat the
+confirmatory trials with the preregistered seed ranges:
 
 ```bash
 bash scripts/run_ovs_confirmatory.sh kali
-# After Kali verification succeeds, on Ubuntu:
+# On the separate Ubuntu installation:
 bash scripts/run_ovs_confirmatory.sh ubuntu
 ```
 
-Each OS produces 30 paired seeds and 60 executions. Up to four isolated attack
-namespaces generate multiple controller-observable sources. Audit-disabled and
-audit-enabled executions use identical schedules. Trial order is counterbalanced;
-the only configured condition change is audit logging.
+Each command runs 30 paired audit-disabled/audit-enabled trials. Audit logging is
+the intended condition difference. Results are reported separately by operating
+system and are actual single-host OVS evidence, not production or Internet-scale
+deployment evidence.
 
-Do not pool OS results without first reporting OS-stratified results and testing
-the cross-platform difference. These experiments are actual single-host OVS lab
-measurements, not Internet-scale or production deployment evidence.
+## Repository map
 
-## Expected outputs
+- `reviewer_revision/`: detector, temporal-fold, policy, statistics, reporting
+  and independent recomputation code.
+- `scripts/run_reviewer_revision.py`: controlled one-command experiment entrypoint.
+- `scripts/verify_release_archives.py`: public evidence and checksum verifier.
+- `scripts/run_ovs_controller_trials.py`: actual traffic, OVS counters,
+  inference, enforcement, audit logging and rollback.
+- `configs/`: canonical detector, deterministic seeds, protocol and threshold
+  registries.
+- `deployment_ovs_v2/`: frozen OVS model, feature schema, threshold curve and
+  provenance metadata.
+- `tests/`: label-leakage, temporal-ordering, graph-feature, threshold,
+  runtime-parity, audit and OVS protocol tests.
+- `MANIFEST.sha256`: checksum manifest for the public repository bundle.
+- `REPRODUCIBILITY.md`: detailed claim-to-command instructions.
 
-- `trial_level_results.csv`
-- `trial_summary_with_ci.csv`
-- `paired_audit_differences.csv`
-- per-window features, probabilities, actions and latencies
-- `traffic_sample.pcap`, OVS initial/final snapshots and audit JSONL per execution
-- `environment.json`, `experiment_configuration.json`, `CHECKSUMS.sha256`
-- `verification_report.json` after independent verification
+Raw CIC-DDoS2019, IoT-23 and TON_IoT archives, manuscript files, private account
+information, virtual environments and superseded pilot results are excluded.
 
-See [the experiment protocol](docs/EXPERIMENT_PROTOCOL.md) and
-[the GitHub upload list](docs/GITHUB_UPLOAD_LIST.md).
+## Citation and rights
 
-## Safety boundary
-
-Run only on systems and traffic namespaces you own or are explicitly authorized
-to test. The runner creates isolated namespaces and an ephemeral OVS bridge. Its
-model-driven action is `RATE_LIMIT`; it does not attack or scan external hosts.
-
-## Licensing
-
-No license is granted merely by publication of this folder. The authors must
-select and add an explicit open-source license before public release.
+Use `CITATION.cff` to cite this exact software release. The current
+research-evaluation license permits non-commercial peer-review and reproducibility
+verification while reserving redistribution and commercial rights. See `LICENSE`.
+The release DOI will be added to the manuscript after Zenodo archives tag
+`v1.0.0`.

@@ -1,0 +1,21 @@
+{
+  "version": "reviewer_revision_v1",
+  "output_directory": "results/reviewer_revision_v1",
+  "seed": 41000,
+  "bootstrap_seed": 9127,
+  "bootstrap_replicates": 2000,
+  "simulation_runs": 16,
+  "windows_per_run": 120,
+  "initial_train_runs": 4,
+  "validation_runs": 2,
+  "test_runs_per_fold": 1,
+  "fold_count": "auto",
+  "stress_trials": 30,
+  "stress_windows": 60,
+  "anchor_timestamp": "2026-01-01T00:00:00+00:00",
+  "graph_history_seconds": 30,
+  "graph_decay_seconds": 15,
+  "imitation_lambda": 0.25,
+  "graph_forest_trees": 120,
+  "topology_scales": {"small_smart_home": 0.65, "medium_industrial_iot": 1.0, "larger_multi_switch": 1.5}
+}

@@ -68,9 +68,9 @@ def test_text_hash_accepts_git_newline_normalization(tmp_path):
 
 def test_runtime_rejects_threshold_registry_mismatch(tmp_path):
     root = Path(__file__).resolve().parents[1]
-    registry = json.loads((root / "configs/threshold_registry.json").read_text(encoding="utf-8"))
+    registry = json.loads((root / "configs/threshold_registry_ovs_v2.json").read_text(encoding="utf-8"))
     registry["operating"]["max_false_positive_rate"] = 0.123
     changed = tmp_path / "registry.json"
     changed.write_text(json.dumps(registry), encoding="utf-8")
     with pytest.raises(ValueError, match="registry hash"):
-        RuntimeDetector(directory=root / "deployment", registry_path=changed)
+        RuntimeDetector(directory=root / "deployment_ovs_v2", registry_path=changed)

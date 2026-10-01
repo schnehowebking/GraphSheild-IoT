@@ -5,3 +5,7 @@ __pycache__/
 results/
 *.pcap
 *.log
+dataset/
+data/external/raw/
+*.docx
+*.pdf

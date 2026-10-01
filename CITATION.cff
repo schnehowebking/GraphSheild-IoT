@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software or its artifacts, please cite this release and the associated GraphShield-IoT article."
+title: "GraphShield-IoT reproducibility artifacts"
+type: software
+version: 1.0.0
+date-released: 2026-10-01
+repository-code: "https://github.com/schnehowebking/GraphSheild-IoT"
+authors:
+  - family-names: Schneho
+    given-names: "Md Hasib Un Nabi"
+  - family-names: Antor
+    given-names: "Noman Zuhaer"
+  - family-names: Halder
+    given-names: Pranto
+  - family-names: "Al Mamun"
+    given-names: "Md. Abdulla"
+abstract: >-
+  Executable source, frozen detector artifacts, validation-only threshold
+  governance, temporal and graph-policy evaluations, external diagnostic
+  transfer evidence, and paired actual OVS trials for GraphShield-IoT.
+keywords:
+  - SDN-IoT
+  - DDoS mitigation
+  - reproducibility
+  - Open vSwitch
+  - temporal evaluation
+  - graph policy

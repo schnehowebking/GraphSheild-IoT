@@ -271,7 +271,13 @@ class RuntimeDetector:
 
 def preservation_status():
     """Resolve repository artifacts relative to this checkout, including after relocation."""
-    snapshot = read_json(ROOT / "reviewer_revision/preservation_snapshot.json")
+    snapshot_path = ROOT / "reviewer_revision/preservation_snapshot.json"
+    if not snapshot_path.exists():
+        return {"checked_files": 0, "changed_files": [],
+                "unavailable_external_references": [
+                    "Legacy preservation snapshot is intentionally omitted from the public reviewer package; "
+                    "published evidence is protected by MANIFEST.sha256 and embedded archive checksums."]}
+    snapshot = read_json(snapshot_path)
     changed, unavailable_external, checked = [], [], 0
     for original, digest in snapshot.items():
         normalized = original.replace(chr(92), "/")

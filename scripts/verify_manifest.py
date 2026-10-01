@@ -6,8 +6,8 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TEXT_SUFFIXES = {".csv", ".json", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"}
-TEXT_NAMES = {".gitattributes", ".gitignore"}
+TEXT_SUFFIXES = {".cff", ".csv", ".json", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"}
+TEXT_NAMES = {".gitattributes", ".gitignore", "LICENSE"}
 
 
 def sha256(path):

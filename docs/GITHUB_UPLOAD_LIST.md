@@ -1,35 +1,22 @@
-# GitHub upload list
+# Public repository contents
 
-Upload the complete contents of this folder:
+The public reviewer release must include:
 
-- `.github/workflows/ci.yml`
-- `.gitignore`
-- `README.md`
-- `requirements-lock.txt`
-- `sdn.py`
-- `upgrade_common.py`
-- `configs/`
-- `deployment/`
-- `deployment_ovs_v2/` after the verified train/validation workflow creates it;
-- `integration/`
-- `reviewer_revision/`
-- `scripts/`
-- `tests/`
-- `docs/`
-- `MANIFEST.sha256`
+- source: `reviewer_revision/`, `integration/`, `scripts/`, `sdn.py`, `ml/`;
+- tests: `tests/` and `.github/workflows/ci.yml`;
+- machine-readable configuration: `configs/`, `deployment_ovs_v2/`;
+- reviewer evidence: `reviewer_revision_v1_evidence.zip`;
+- actual OVS evidence: the Kali and Ubuntu confirmatory ZIP archives;
+- calibration provenance: `ovs_calibration_v2.zip`;
+- documentation: `README.md`, `REPRODUCIBILITY.md`, `docs/`, `data/README.md`;
+- citation and rights: `CITATION.cff`, `LICENSE`;
+- integrity: `MANIFEST.sha256` and the embedded archive manifests.
 
-Do not upload:
+Do not publish raw third-party dataset archives, manuscripts, reviewer files,
+credentials, virtual environments, caches, private packet captures or superseded
+pilot results. Processed external window inputs must retain source attribution and
+must be described only as diagnostic feature-compatible transfer.
 
-- manuscript or reviewer DOCX files;
-- raw CIC-DDoS2019, IoT-23 or TON_IoT datasets;
-- `.venv`, caches or credentials;
-- prior unverified result directories;
-- packet captures containing traffic outside the isolated experiment network;
-- API tokens, SSH keys or account information.
-
-Before publishing, add an author-approved license, repository URL, release tag
-and archival DOI. Record the release commit in the manuscript and response letter.
-
-Archive the verified calibration and confirmatory result directories with their
-checksums in a release or research repository. Large PCAP files may use Zenodo;
-do not omit their hashes or replace them with manually edited summaries.
+Before tagging, run every command in `docs/RELEASE_CHECKLIST.md`. Attach or archive
+larger future evidence through a versioned research repository and record its
+SHA-256 checksum and DOI; never replace generated metrics manually.

@@ -25,10 +25,11 @@ def sha(path):
 def main():
     if sys.version_info[:2] != (3, 13):
         raise RuntimeError("Portable runtime requires Python 3.13")
-    selection = json.loads((ROOT / "deployment/threshold_selection.json").read_text())
-    assert sha(ROOT / "deployment/model.joblib") == selection["model_hash"]
-    assert matches_text_sha(ROOT / "deployment/feature_schema.json", selection["feature_schema_hash"])
-    detector = RuntimeDetector(directory=ROOT / "deployment", registry_path=ROOT / "configs/threshold_registry.json")
+    deployment = ROOT / "deployment_ovs_v2"
+    selection = json.loads((deployment / "threshold_selection.json").read_text())
+    assert sha(deployment / "model.joblib") == selection["model_hash"]
+    assert matches_text_sha(deployment / "feature_schema.json", selection["feature_schema_hash"])
+    detector = RuntimeDetector(directory=deployment, registry_path=ROOT / "configs/threshold_registry_ovs_v2.json")
     zero = {name: 0.0 for name in FEATURES}
     response = CompletedWindowController(detector=detector, audit_enabled=False).detect_completed_window(zero, "parity-zero")
     assert np.isfinite(response["probability"])

@@ -1,26 +1,19 @@
-# Portability validation status
+# Portability and verification status
 
-Completed before publication of this folder:
+Verified public artifacts include:
 
-- Python syntax checks passed for runtime, OVS runner and verifiers.
-- Thirteen platform-independent tests passed, including an end-to-end synthetic
-  OVS train/validation/model/threshold verification workflow.
-- Canonical model and feature-schema SHA-256 matched threshold metadata.
-- Original detector configuration and threshold-registry hashes were preserved.
-- Saved threshold `0.48702094063328466` loaded successfully under Python 3.13.3.
-- Strict eight-feature order and label rejection passed.
-- Bash syntax checks passed for setup, environment and trial wrappers.
+- Python 3.13 locked dependency installation;
+- platform-independent detector, temporal-fold, graph-policy, threshold, audit
+  and OVS protocol tests;
+- strict eight-feature order and label/metadata rejection;
+- canonical model, feature-schema and threshold hash validation;
+- row-level recomputation of controlled temporal, policy, stress, topology,
+  flash-crowd and external diagnostic results;
+- 30 paired actual OVS trials on Kali and 30 paired trials on Ubuntu;
+- 720 verified windows, 60 executions and valid audit chains per OS archive;
+- repository and embedded-artifact SHA-256 verification.
 
-Still required on each Linux host:
-
-- run `scripts/verify_environment.sh`;
-- collect the fixed Kali training and later validation seed ranges;
-- train and verify `deployment_ovs_v2/` with zero test rows seen;
-- run the confirmatory smoke experiment;
-- run Kali's 30 fresh paired trials;
-- clone the frozen-model commit and run Ubuntu's separate 30 fresh paired trials;
-- preserve the generated verification report and checksums;
-- report Kali and Ubuntu results separately.
-
-Windows validation does not claim that OpenFlow meters or namespace traffic have
-already executed. Only a passing Linux smoke/full verification can establish that.
+A reviewer can verify saved evidence on Windows, Linux or macOS with Python 3.13.
+Running new OVS traffic requires Kali or Ubuntu, root privileges, Open vSwitch,
+`iproute2`, `iperf3` and `tcpdump`. Timing can vary by hardware and OS. The claim
+scope remains an authorized single-host OVS lab, not a production deployment.

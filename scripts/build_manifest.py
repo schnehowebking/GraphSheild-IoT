@@ -8,8 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "MANIFEST.sha256"
 EXCLUDED_PARTS = {".git", ".venv", ".pytest_cache", "__pycache__", "results"}
-TEXT_SUFFIXES = {".csv", ".json", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"}
-TEXT_NAMES = {".gitattributes", ".gitignore"}
+TEXT_SUFFIXES = {".cff", ".csv", ".json", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"}
+TEXT_NAMES = {".gitattributes", ".gitignore", "LICENSE"}
 
 
 def sha256(path):
