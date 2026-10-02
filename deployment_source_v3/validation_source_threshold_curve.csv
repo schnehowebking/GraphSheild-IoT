@@ -1,0 +1,9 @@
+version,byte_rate_threshold,consecutive_windows,rule_ttl_seconds,benign_targets,attack_targets,benign_opportunities,attack_opportunities,benign_target_rate,multiplier,selected
+source_rate_envelope_v3,2565933.0,1,15,0,17,240,120,0.0,1,False
+source_rate_envelope_v3,2565933.0,2,15,0,6,240,120,0.0,1,False
+source_rate_envelope_v3,3207416.25,1,15,0,17,240,120,0.0,1.25,False
+source_rate_envelope_v3,3207416.25,2,15,0,4,240,120,0.0,1.25,False
+source_rate_envelope_v3,3848899.5,1,15,0,17,240,120,0.0,1.5,True
+source_rate_envelope_v3,3848899.5,2,15,0,4,240,120,0.0,1.5,False
+source_rate_envelope_v3,5131866.0,1,15,0,11,240,120,0.0,2,False
+source_rate_envelope_v3,5131866.0,2,15,0,1,240,120,0.0,2,False

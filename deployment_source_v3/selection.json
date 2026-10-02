@@ -1,0 +1,28 @@
+{
+  "policy_hash": "18f5d5312e63af330a49aa6abe5fb850d753d4e4c9fdc611d71911d3b239c6e5",
+  "objective": {
+    "training_statistic": "maximum observed benign source byte_rate in development reference trials",
+    "threshold_multipliers": [
+      1,
+      1.25,
+      1.5,
+      2
+    ],
+    "persistence_candidates": [
+      1,
+      2
+    ],
+    "max_validation_benign_target_rate": 0.01,
+    "objective": "maximize correctly targeted attack-source windows subject to benign-target rate constraint",
+    "tie_break": "fewer benign targets, larger threshold, longer persistence",
+    "no_feasible_candidate": "abstain always"
+  },
+  "result": {
+    "benign_targets": 0,
+    "attack_targets": 17,
+    "benign_opportunities": 240,
+    "attack_opportunities": 120,
+    "benign_target_rate": 0.0
+  },
+  "confirmatory_execution_allowed": true
+}

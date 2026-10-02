@@ -1,0 +1,23 @@
+{
+  "version": "source_rate_envelope_v3",
+  "byte_rate_threshold": 3848899.5,
+  "consecutive_windows": 1,
+  "rule_ttl_seconds": 15,
+  "status": "validation_selected",
+  "protocol_hash": "c9dfe2e1242503da6752baa6236ea3f77c9173fb17f0b8503ef6fe01603ce0d3",
+  "detector_model_hash": "f71dce8494d7d169d50ec31bd4ba7cecb04939e11179f33ffc88b3d4a549afb6",
+  "validation_attack_targets": 17,
+  "validation_metrics": {
+    "benign_targets": 0,
+    "attack_targets": 17,
+    "benign_opportunities": 240,
+    "attack_opportunities": 120,
+    "benign_target_rate": 0.0
+  },
+  "training_rows": 480,
+  "validation_rows": 240,
+  "training_input_hash": "b3e377d3f79109087278547512d678a6144e48a7b7dc7795e8b26c59751cfc27",
+  "validation_input_hash": "6c29bec5d495d2da77cc92ef4b07a1b4e8a5a88e8c9cda3e22bd0dd87f9d64e4",
+  "created_at": "2026-10-01T22:35:53.165307+00:00",
+  "limitations": "Empirical rate gate only; cannot distinguish observationally identical benign/attack sources. Not a risk guarantee."
+}
