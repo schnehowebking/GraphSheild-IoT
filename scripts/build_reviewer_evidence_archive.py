@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a compact, deterministic archive of row-level reviewer evidence."""
+"""Build a complete deterministic evidence archive; refuse existing outputs."""
 from __future__ import annotations
 
 import argparse
@@ -9,27 +9,26 @@ from pathlib import Path
 
 
 def include(relative: Path) -> bool:
-    if relative.name == "CHECKSUMS.sha256":
-        return False
-    if "audit_logs" in relative.parts or "stress_inputs" in relative.parts:
-        return False
-    if relative.name == "model.joblib" and "models" in relative.parts:
-        return False
-    return True
+    return not ({"__pycache__", ".pytest_cache"} & set(relative.parts))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default="results/reviewer_revision_v1")
-    parser.add_argument("--output", default="reviewer_revision_v1_evidence.zip")
+    parser.add_argument("--output", default="release_assets/reviewer_revision_v1_complete_v2.zip")
     args = parser.parse_args()
     source = Path(args.source).resolve()
     output = Path(args.output).resolve()
     if not source.is_dir():
         raise FileNotFoundError(source)
+    if output.exists():
+        raise FileExistsError(output)
+    if output.is_relative_to(source):
+        raise ValueError("Archive output must be outside source")
+    output.parent.mkdir(parents=True, exist_ok=True)
     files = sorted(p for p in source.rglob("*") if p.is_file() and include(p.relative_to(source)))
     checksums = []
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+    with zipfile.ZipFile(output, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in files:
             relative = path.relative_to(source).as_posix()
             data = path.read_bytes()

@@ -1,9 +1,11 @@
-# OVS safety revision v3 — development required before confirmation
+# OVS safety revision v3 — frozen-policy confirmation
 
-Status: software safeguards and offline analysis are implemented. No v3 physical OVS
-calibration, validation, or confirmatory results have been collected here. Do not
-claim zero harm, a formal risk bound, or successful mitigation based on passing tests.
-The archived v2 results and model/threshold remain unchanged. The unsafe v2 execution
+Status: Kali and Ubuntu confirmation evidence is now bundled (90 executions each).
+The frozen selector, full validation curve and original 40 development/20 validation
+raw runs are bundled; source selection can be independently replayed. Do not
+claim zero harm or a formal risk bound based on passing integrity tests.
+The retained v2 detector model/threshold remain unchanged; superseded v2
+confirmation archives are excluded from this public bundle. The unsafe v2 execution
 entrypoint is retired. The legacy general-purpose `/detect` route is outside this
 completed-window OVS protocol; this revision does not validate its safety.
 
@@ -56,9 +58,12 @@ Benign offered rates include 12 and 20 Mbps challenges in addition to v2 rates; 
 a new evaluation, not a paired improvement comparison against the v2 historical runs.
 The schedule still covers a limited synthetic UDP workload, not arbitrary DDoS attacks.
 
-## On Kali first
+## Optional new development experiment
 
-After pushing the changed source and pulling it onto Kali, from the repository root:
+For reproduction of the published evidence, use README.md and the bundled frozen
+policy. The following sequence collects a NEW development experiment; it is not
+required to replay evidence or replicate confirmation. Use new output directories
+and keep the resulting policy separate from `deployment_source_v3/`:
 
 ```bash
 source .venv/bin/activate
@@ -70,22 +75,27 @@ sudo .venv/bin/python scripts/run_ovs_safety.py --stage development --output res
 sudo .venv/bin/python scripts/verify_ovs_safety.py results/ovs_safety_development_v3
 sudo .venv/bin/python scripts/run_ovs_safety.py --stage validation --output results/ovs_safety_validation_v3
 sudo .venv/bin/python scripts/verify_ovs_safety.py results/ovs_safety_validation_v3
-python scripts/fit_ovs_source_selector.py --train results/ovs_safety_development_v3 --validation results/ovs_safety_validation_v3 --output deployment_source_v3
+python scripts/fit_ovs_source_selector.py --train results/ovs_safety_development_v3 --validation results/ovs_safety_validation_v3 --output results/source_policy_new_experiment
 ```
 
-STOP and inspect `deployment_source_v3/selection.json` and the full validation curve.
-No live v3 calibration data are bundled yet; do not create source_policy.json manually.
+Inspect `results/source_policy_new_experiment/selection.json` and the full
+validation curve. Original v3 calibration data ARE bundled in the source-calibration
+ZIP; do not create source_policy.json manually.
 If confirmatory_execution_allowed is false, do not change thresholds merely to pass.
 Review the failed attribution evidence and narrow the contribution or design a new
 separately validated selector. Even a true flag does not establish harm-free mitigation.
 Archive the frozen source policy and input manifests before proceeding.
 
-## After reviewing validation, confirm on Kali
+## Replicate confirmation with the bundled frozen policy
 
 ```bash
 sudo .venv/bin/python scripts/run_ovs_safety.py --stage confirmatory_kali --source-policy deployment_source_v3/source_policy.json --output results/actual_ovs_kali_safety_v3
 sudo .venv/bin/python scripts/verify_ovs_safety.py results/actual_ovs_kali_safety_v3
 ```
+
+The commands above and below deliberately use the bundled frozen policy, not
+`results/source_policy_new_experiment`. Confirming a newly fitted policy requires
+a separately planned protocol and untouched seeds.
 
 Transfer the exact `deployment_source_v3/` to Ubuntu with the same updated code,
 existing deployment_ovs_v2 and registry. Do not refit using Ubuntu confirmatory data.
@@ -122,13 +132,3 @@ The verifier recomputes frozen model scores, source decisions, feature hashes, c
 metrics and timing quantiles; verifies chains, recorded flow targets/TTL and final removal;
 and regenerates service summaries/CIs from receiver logs. Passing means artifact consistency,
 not satisfactory safety/effectiveness. Mocked software fixtures are never real OVS results.
-
-## Historical reanalysis
-
-```bash
-python scripts/analyze_ovs_safety.py --source kali=PATH_TO_KALI_V2 --source ubuntu=PATH_TO_UBUNTU_V2 --output results/historical_safety_analysis_NEW
-```
-
-Keep the original v2 archives. This command creates new results and source checksums;
-it does not repair past measurements or change their model predictions. Full raw external
-adapter/release/manuscript issues from the broader AI audit are separate work.

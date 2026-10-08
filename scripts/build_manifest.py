@@ -21,11 +21,17 @@ def sha256(path):
 
 def selected(path):
     relative = path.relative_to(ROOT)
-    return path.is_file() and path != OUTPUT and not (set(relative.parts) & EXCLUDED_PARTS)
+    return not (set(relative.parts) & EXCLUDED_PARTS) and path != OUTPUT and path.is_file()
 
 
 def main():
-    files = sorted(path for path in ROOT.rglob("*") if selected(path))
+    files = []
+    # Prune excluded trees BEFORE stat/scandir of their children. Linux venv
+    # symlinks copied onto Windows may be unreadable, and are never release input.
+    for directory, dirs, names in ROOT.walk(top_down=True):
+        dirs[:] = [name for name in dirs if name not in EXCLUDED_PARTS]
+        files.extend(directory / name for name in names if selected(directory / name))
+    files.sort()
     OUTPUT.write_text("".join(
         f"{sha256(path)}  {path.relative_to(ROOT).as_posix()}\n" for path in files), encoding="utf-8")
     print(f"Wrote {OUTPUT} with {len(files)} files")

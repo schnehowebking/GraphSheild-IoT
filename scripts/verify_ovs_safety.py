@@ -17,6 +17,34 @@ from run_ovs_controller_trials import binary_metrics
 from analyze_ovs_safety import analyze
 
 
+def normalize_record_locations(frame):
+    """Compare record identity across relocated copies; never ignore metric columns.
+
+    Stored absolute roots are provenance, not a prerequisite for reproduction.
+    Require every path to identify exactly the seed/condition record in its row.
+    """
+    if "record_path" not in frame.columns:
+        return frame
+    frame = frame.copy()
+    normalized = []
+    for row in frame.itertuples(index=False):
+        parts = str(row.record_path).replace(chr(92), "/").split("/")
+        expected = f"seed_{int(row.seed):08d}_{row.setting}/window_results.csv"
+        relative = "/".join(parts[-2:])
+        if relative != expected:
+            raise ValueError(f"Saved record path does not match trial identity: {relative}")
+        normalized.append(relative)
+    frame["record_path"] = normalized
+    return frame
+
+
+def verify_empty_summary(saved, regenerated):
+    # pandas writes a lone LF or CRLF for an empty DataFrame depending on host OS.
+    allowed = {b'\n', b'\r\n'}
+    if saved.read_bytes() not in allowed or regenerated.read_bytes() not in allowed:
+        raise ValueError('Empty summary mismatch')
+
+
 def verify(output, deployment, registry):
     out=Path(output)
     config=json.loads((out/"run_configuration.json").read_text())
@@ -117,9 +145,10 @@ def verify(output, deployment, registry):
         for path in target.glob("*.csv"):
             # Recompute service/target metrics and their trial CIs from original receiver logs.
             if path.stat().st_size<=2:
-                if (out/"safety_analysis"/path.name).read_bytes()!=path.read_bytes(): raise ValueError("Empty summary mismatch")
+                verify_empty_summary(out/"safety_analysis"/path.name, path)
             else:
-                pd.testing.assert_frame_equal(pd.read_csv(path),pd.read_csv(out/"safety_analysis"/path.name))
+                pd.testing.assert_frame_equal(normalize_record_locations(pd.read_csv(path)),
+                                              normalize_record_locations(pd.read_csv(out/"safety_analysis"/path.name)))
     return dict(passed=True,stage=config["stage"],executions=len(folders),windows_verified=checked,
         audit_chains_verified=chains,checksums_verified=len(covered),matched_schedules_verified=True,
         realized_inputs_identical="not assumed",safety_claim="Replay integrity only; inspect measured harm and effectiveness separately")

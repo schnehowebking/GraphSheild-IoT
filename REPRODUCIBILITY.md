@@ -1,49 +1,30 @@
-# Reviewer reproduction guide
+# Claim-to-command map
 
-Archived release: [GraphShield-IoT v1.0.0 on Zenodo](https://doi.org/10.5281/zenodo.23084542).
-
-## Claims and verification commands
-
-| Claim area | Evidence | Verification |
+| Evidence | Command / source | Interpretation |
 |---|---|---|
-| Repeated non-overlapping temporal folds | `reviewer_revision_v1_evidence.zip` | `python scripts/verify_release_archives.py` |
-| Confidence intervals and saved row-level predictions | same archive | same command |
-| Label-free, distinct graph policies | `policy_predictions.csv`, policy metadata and tests | archive verifier plus `pytest tests/test_reviewer_revision.py -q` |
-| Canonical detector and threshold governance | `configs/`, `deployment_ovs_v2/` | `python scripts/verify_portable_runtime.py` |
-| Actual paired OVS trials | Kali and Ubuntu ZIP archives | `python scripts/verify_release_archives.py` |
-| Full controlled regeneration | executable pipeline | `python scripts/run_reviewer_revision.py --output results/reviewer_reproduction_v1` |
+| Complete controlled temporal folds, policies, uncertainty | `verify_public_release.py`, complete controlled ZIP | Controlled simulation; folds and policy result statistics recomputed |
+| Actual OVS v3 confirmation | same verifier, v3 evidence ZIP | 90 executions per OS; classification, source choice, service and audit replay |
+| External raw-derived diagnostic | same verifier, external ZIP | Frozen controlled model and threshold; feature proxies, not live deployment equivalence |
+| Frozen runtime schema/threshold | `verify_portable_runtime.py` | Serialized OVS model parity |
+| Raw external processing | `reproduce_external.py` | Publisher sources needed; see `docs/EXTERNAL_REPRODUCTION.md` |
+| Fresh controlled regeneration | `run_reviewer_revision.py --output NEW_DIRECTORY` | Excludes actual OVS traffic and raw-source processing |
+| Source-policy selection | `verify_source_policy.py` (also called by public verifier) | Original 40+20 runs, all 8 candidates and frozen selection independently replayed |
 
-## Evidence boundaries
+Commands above are under `scripts/`. Full invocations are in README.md.
 
-- Controlled temporal, topology, flash-crowd and graph-policy results are
-  controlled simulation measurements.
-- The Kali and Ubuntu confirmatory archives are actual single-host OVS/runtime
-  measurements.
-- External results use one frozen transfer threshold and are diagnostic because
-  public feature meanings differ from controller-window telemetry.
-- Contextual-bandit and conservative offline-RL claims are excluded because the
-  available logs lack action propensities and supported counterfactual outcomes.
+Controlled seeds: simulation 41000, bootstrap 9127. OVS detector calibration:
+51000-51039 fitting, 52000-52019 validation. V3 source selection: 71000-71039
+and 72000-72019. V3 confirmation: Kali 73000-73029, Ubuntu 83000-83029.
+V3 bootstrap seed: 20261002. External bootstrap seed: 20260928.
 
-## Independent metric recomputation
+Superseded v2 confirmation artifacts are excluded from this public bundle.
+Finite single-host runs cannot establish WAN, hardware-switch or production safety.
+Classification F1, source-selection coverage and actual mitigation effectiveness
+are separate measures. Hash-linked local audit is tamper evidence, not distributed
+consensus or authenticated proof of data collection. RL/bandit learning claims
+remain unsupported without suitable logged action/reward/propensity trajectories.
 
-`scripts/verify_release_archives.py` extracts the evidence in a temporary
-directory and recalculates confusion matrices, accuracy, precision, recall, F1,
-ROC-AUC, PR-AUC, false-positive and false-negative rates, benign damage, rewards,
-agreement, action counts, bootstrap confidence intervals, McNemar comparisons,
-stress summaries and paired audit differences. Undefined metrics remain explicit
-rather than being silently replaced.
-
-## Determinism
-
-The controlled pipeline records seed `41000`, bootstrap seed `9127`, all run
-seeds, fold boundaries and configuration hashes. The OVS protocol reserves
-`51000-51039` for fitting, `52000-52019` for validation, `53000-53029` for Kali
-confirmation and `63000-63029` for Ubuntu confirmation. Thread counts and the
-RandomForest seed are fixed.
-
-## Expected limitations
-
-Wall-clock and audit timing values vary across hosts. OVS reproduction requires
-Linux root privileges because it creates namespaces, bridges and meters. The
-testbed does not establish multi-controller, hardware-switch, WAN or production
-performance.
+Complete evidence preserves historical files byte-for-byte. Hashes prove consistency
+against the included manifest, not independent authenticity. A new release must
+publish the source bundle, all release_assets ZIPs and the source manifest together.
+Do not claim the current local bundle already exists at the historical Zenodo DOI.

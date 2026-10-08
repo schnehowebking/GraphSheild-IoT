@@ -218,3 +218,39 @@ def test_sha256_text_manifest_survives_line_endings(tmp_path):
     f=tmp_path/"CHECKSUMS.sha256"
     f.write_bytes(b"abc  file\r\n"); crlf=sha256(f)
     f.write_bytes(b"abc  file\n"); assert sha256(f)==crlf
+
+
+def test_relocated_record_paths_preserve_trial_identity_and_metrics():
+    import pandas as pd
+    from scripts.verify_ovs_safety import normalize_record_locations
+    record = dict(seed=73000, setting="audit_enabled", window_index=0,
+                  benign_loss_percent=0.0,
+                  record_path="/mnt/old/results/seed_00073000_audit_enabled/window_results.csv")
+    linux = pd.DataFrame([record])
+    windows = pd.DataFrame([{**record, "record_path":r"F:\copied\seed_00073000_audit_enabled\window_results.csv"}])
+    pd.testing.assert_frame_equal(normalize_record_locations(linux),normalize_record_locations(windows))
+    windows.loc[0,"benign_loss_percent"]=12.0
+    with pytest.raises(AssertionError):
+        pd.testing.assert_frame_equal(normalize_record_locations(linux),normalize_record_locations(windows))
+    windows.loc[0,"record_path"]="/tmp/seed_00073001_audit_enabled/window_results.csv"
+    with pytest.raises(ValueError,match="trial identity"):
+        normalize_record_locations(windows)
+
+
+def test_manifest_prunes_excluded_environment_before_stat(tmp_path,monkeypatch):
+    import scripts.build_manifest as builder
+    for folder in [".venv", "results", ".git"]:
+        (tmp_path/folder).mkdir()
+        (tmp_path/folder/"unreadable-link").write_text("not a release file")
+    (tmp_path/"source.py").write_text("print(1)\n")
+    original=Path.is_file
+    def guarded(path,*args,**kwargs):
+        if set(path.relative_to(tmp_path).parts)&builder.EXCLUDED_PARTS:
+            raise PermissionError("Excluded path must not be statted")
+        return original(path,*args,**kwargs)
+    monkeypatch.setattr(builder,"ROOT",tmp_path)
+    monkeypatch.setattr(builder,"OUTPUT",tmp_path/"MANIFEST.sha256")
+    monkeypatch.setattr(Path,"is_file",guarded)
+    builder.main()
+    lines=(tmp_path/"MANIFEST.sha256").read_text().splitlines()
+    assert len(lines)==1 and lines[0].endswith("  source.py")

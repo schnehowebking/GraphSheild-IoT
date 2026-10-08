@@ -1,0 +1,28 @@
+SOURCE-POLICY REPRODUCTION UPDATE — 2026-10-08
+
+Status: original source calibration evidence supplied and independently replayed. Frozen runtime model, threshold and source policy are unchanged.
+
+development: 40 executions; 480 windows; 2273 checksums; replay PASS.
+validation: 20 executions; 240 windows; 1123 checksums; replay PASS.
+
+Consumed input file fingerprints verified: 842.
+All 8 candidate curve rows match the original saved validation curve.
+Selected byte_rate threshold: 3848899.5; consecutive windows: 1; rule TTL: 15 seconds.
+Original validation metrics: {"attack_opportunities": 120, "attack_targets": 17, "benign_opportunities": 240, "benign_target_rate": 0.0, "benign_targets": 0}
+Frozen policy hash: 18f5d5312e63af330a49aa6abe5fb850d753d4e4c9fdc611d71911d3b239c6e5
+Only recomputation timestamp and relocated absolute-path manifest hashes differ; every referenced file identity and byte hash verified.
+
+Tests: 79 passed, 2 skipped, 0 failed, 0 errors. One expected duplicate-ZIP fixture warning.
+New archive: release_assets/ovs_source_calibration_v3_evidence_v1.zip; 6599124 bytes; SHA256 a93687343abcf66ea7e0a7bf8b583963961b526c2b609442a54a54993920916e.
+
+Changes: added verify_source_policy.py and its regression tests; integrated calibration replay into verify_public_release.py; added source-calibration packaging option; corrected empty summary LF/CRLF comparison without weakening byte checks on original artifacts; updated current public documentation.
+No old result, frozen deployment file or prior archive was overwritten. The new fit is in results/source_policy_reproduction_v1/recomputed_selector only and must not replace the deployed policy.
+
+Reproduce from repository root:
+python scripts/verify_public_release.py --output results/public_check_v2
+Alternatively, with original source folders present:
+python scripts/verify_source_policy.py --train results/ovs_safety_development_v3 --validation results/ovs_safety_validation_v3 --output results/source_policy_check_v1
+
+Remaining: native Linux/CI verification of the updated release, final paper/response/license alignment and publishing a new release. No new 90-execution experiment or threshold tuning is required by this integrity check. No GitHub push or Zenodo publication performed.
+
+Integrated fresh-extraction verification: PASS. Four archives, 14114 packaged files checked; controlled results, both OVS confirmations, source calibration and 359468 external predictions replayed. Machine-readable report: results/public_reproducibility_audit_v3/verification.json.

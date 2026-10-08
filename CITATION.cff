@@ -1,11 +1,8 @@
 cff-version: 1.2.0
-message: "If you use this software or its artifacts, please cite this release and the associated GraphShield-IoT article."
+message: "Unreleased revision: cite the repository and exact Git commit used. Add release metadata only after publishing and verifying the corresponding version."
 title: "GraphShield-IoT reproducibility artifacts"
 type: software
-version: 1.0.0
-date-released: 2026-10-01
 repository-code: "https://github.com/schnehowebking/GraphSheild-IoT"
-doi: "10.5281/zenodo.23084542"
 authors:
   - family-names: Schneho
     given-names: "Md Hasib Un Nabi"

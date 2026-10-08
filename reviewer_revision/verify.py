@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from reviewer_revision.core import metrics, read_json, rewards, sha
+from reviewer_revision.artifact_paths import artifact_path
 from reviewer_revision.statistics import summarize_policies, trial_summary, confidence_intervals, pairwise_statistics
 
 
@@ -46,9 +47,10 @@ def verify_results(output, require_model_binaries=True):
         assert json.loads(current.action_distribution) == json.loads(summary.loc[name, "action_distribution"])
         assert np.array_equal(d.reward.to_numpy(), rewards(d.label.to_numpy(), d.prediction.to_numpy()))
         for selection_file, g in d.groupby("threshold_selection_file"):
-            selection = read_json(output / selection_file)
+            selection_path = artifact_path(output, selection_file)
+            selection = read_json(selection_path)
             assert np.all(g.threshold == selection["selected_value"])
-            model_path = (output / selection_file).parent / "model.joblib"
+            model_path = selection_path.parent / "model.joblib"
             if model_path.exists():
                 assert selection["model_hash"] == sha(model_path)
             elif require_model_binaries:
