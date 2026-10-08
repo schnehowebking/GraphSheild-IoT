@@ -156,7 +156,7 @@ class WindowWriter:
         target = int(state.target_attack_rows > 0)
         self.writer.writerow({
             "dataset_id": self.dataset,
-            "scenario_id": f"{self.scenario}__segment_{self.segment}",
+            "scenario_id": self.scenario if getattr(self, "source_complete", False) else f"{self.scenario}__segment_{self.segment}",
             "source_file": self.source_file,
             "segment_id": self.segment,
             "window_start_epoch": state.epoch,
@@ -217,6 +217,33 @@ class WindowWriter:
         self.handle.close()
 
 
+class SourceWindowWriter(WindowWriter):
+    """Aggregate a complete source file by time, independent of row/chunk order.
+
+    Source-file identity is an observational boundary, not a claim of independent
+    capture sessions. Retain source-occurrence counts until end of file so entropy
+    and cardinality are computed from raw records, never merged summary features.
+    """
+    source_complete = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pending: dict[int, WindowState] = {}
+
+    def new_segment(self) -> None:
+        # A timestamp reversal is diagnostic only; it does not create an episode.
+        pass
+
+    def add_frame(self, epoch: int, frame: pd.DataFrame) -> None:
+        self.pending.setdefault(epoch, WindowState(epoch)).add_frame(frame)
+
+    def flush(self) -> None:
+        for epoch in sorted(self.pending):
+            self.state = self.pending[epoch]
+            super().flush()
+        self.pending.clear()
+
+
 def safe_numeric(series: pd.Series) -> tuple[pd.Series, int]:
     values = pd.to_numeric(series, errors="coerce")
     values = values.replace([np.inf, -np.inf], np.nan)
@@ -248,9 +275,9 @@ def cic_files(root: Path) -> list[Path]:
     return sorted((root / "CIC-DDoS2019" / "CSVs").rglob("*.csv"))
 
 
-def process_cic(root: Path, output: Path, max_rows: int | None, chunksize: int) -> dict:
-    files = cic_files(root)
-    writer = WindowWriter(output, "cicddos2019")
+def process_cic(root: Path, output: Path, max_rows: int | None, chunksize: int, *, files: list[Path] | None = None) -> dict:
+    files = cic_files(root) if files is None else files
+    writer = SourceWindowWriter(output, "cicddos2019")
     stats: dict[str, object] = {
         "files": len(files), "raw_rows": 0, "dropped_bad_timestamps": 0,
         "numeric_coercions": 0, "out_of_order_resets": 0, "last_ts": None,
@@ -472,9 +499,9 @@ def toniot_files(root: Path) -> list[Path]:
     return sorted(folder.glob("Network_dataset_*.csv"), key=lambda p: int(p.stem.rsplit("_", 1)[1]))
 
 
-def process_toniot(root: Path, output: Path, max_rows: int | None, chunksize: int) -> dict:
-    files = toniot_files(root)
-    writer = WindowWriter(output, "toniot")
+def process_toniot(root: Path, output: Path, max_rows: int | None, chunksize: int, *, files: list[Path] | None = None) -> dict:
+    files = toniot_files(root) if files is None else files
+    writer = SourceWindowWriter(output, "toniot")
     stats: dict[str, object] = {
         "files": len(files), "raw_rows": 0, "dropped_bad_timestamps": 0,
         "numeric_coercions": 0, "out_of_order_resets": 0, "last_ts": None,
@@ -567,7 +594,7 @@ def source_records(root: Path, selected: Iterable[Path]) -> list[dict[str, objec
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-root", default=str(ROOT / "dataset" / "datasetsforexternalaudit"))
-    parser.add_argument("--output", default=str(ROOT / "results" / "external_raw_processing_v1"))
+    parser.add_argument("--output", default=str(ROOT / "results" / "external_raw_processing_v2"))
     parser.add_argument("--datasets", nargs="+", choices=["cic", "iot23", "toniot"], default=["cic", "iot23", "toniot"])
     parser.add_argument("--chunksize", type=int, default=200_000)
     parser.add_argument("--max-rows-per-file", type=int)
@@ -604,7 +631,9 @@ def main() -> int:
         writer = csv.DictWriter(handle, fieldnames=["feature", "external_definition", "equivalence"])
         writer.writeheader(); writer.writerows(feature_semantics_rows())
     manifest = {
-        "version": "external_raw_processing_v1", "created_at": datetime.now(timezone.utc).isoformat(),
+        "version": "external_raw_processing_v2", "created_at": datetime.now(timezone.utc).isoformat(),
+        "aggregation_unit": "CIC/TON source-file and five-second flow-start bin; IoT-23 scenario and bin; timestamp reversals do not define episodes",
+        "independence": "Source-file boundaries are not evidence of independent capture sessions",
         "input_root": root.as_posix(), "window_seconds": 5, "chunksize": args.chunksize,
         "max_rows_per_file": args.max_rows_per_file, "datasets": results,
         "label_policy": "features aggregated without labels; window label attached afterward as any attack row",
@@ -619,7 +648,7 @@ def main() -> int:
         encoding="utf-8",
     )
     (output / "README.md").write_text(
-        "# External raw processing v1\n\n"
+        "# External raw processing v2\n\n"
         "Generated by `scripts/process_external_raw_datasets.py`. Source files are read-only. "
         "Outputs are five-second offline flow-derived diagnostic windows and are not claimed "
         "semantically identical to GraphShield controller telemetry. Labels are attached after "
